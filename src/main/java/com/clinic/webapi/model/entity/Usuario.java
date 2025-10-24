@@ -1,14 +1,7 @@
 package com.clinic.webapi.model.entity;
 
 import lombok.*;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.Id;
-import jakarta.persistence.Column;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ManyToMany;
+import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
@@ -18,36 +11,44 @@ import java.util.UUID;
 
 
 @Entity
-@Table(name = "users")
+@Table(name = "usuarios")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class User {
+public class Usuario {
 
-    @Id
-    @UuidGenerator
-    private UUID id;
+  @Id
+  @UuidGenerator
+  private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+  @Column(nullable = false, unique = true, name = "email")
+  private String email;
 
-    @Column(nullable = false)
-    private String passwordHash;
+  @Column(nullable = false, name = "password_hash")
+  private String passwordHash;
 
-    private String firstName;
-    private String lastName;
-    private String phone;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "empleado_id", nullable = false)
+  private Empleado empleado;
 
-    private boolean isActive = true;
-    private boolean isVerified = false;
+  @Column(name = "token_verificacion")
+  private String tokenVerificacion;
 
-    private Instant deletedAt;
-    private Instant createdAt = Instant.now();
-    private Instant updatedAt = Instant.now();
+  @Column(name = "esta_activo", nullable = false)
+  private boolean estaActivo = true;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name="user_id"),
-            inverseJoinColumns = @JoinColumn(name="role_id")
-    )
-    private Set<Rol> rols = new HashSet<>();
+  @Column(name = "esta_verificado", nullable = false)
+  private boolean estaVerificado = false;
+
+  @Column(name = "fecha_creacion", updatable = false)
+  private Instant fechaCreacion = Instant.now();
+
+  @Column(name = "fecha_actualizacion")
+  private Instant fechaActualizacion = Instant.now();
+
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "usuario_rol",
+      joinColumns = @JoinColumn(name="usuario_id"),
+      inverseJoinColumns = @JoinColumn(name="rol_id")
+  )
+  private Set<Rol> roles = new HashSet<>();
 }
