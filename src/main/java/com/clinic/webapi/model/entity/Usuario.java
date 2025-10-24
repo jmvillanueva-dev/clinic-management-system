@@ -29,9 +29,6 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(unique = true)
-    private String username;
-
     @Column(nullable = false)
     private String passwordHash;
 
@@ -52,5 +49,5 @@ public class User {
             joinColumns = @JoinColumn(name="user_id"),
             inverseJoinColumns = @JoinColumn(name="role_id")
     )
-    private Set<Role> roles = new HashSet<>();
+    private Set<Rol> rols = new HashSet<>();
 }
