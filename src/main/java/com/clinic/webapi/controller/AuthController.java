@@ -3,46 +3,93 @@ package com.clinic.webapi.controller;
 import com.clinic.webapi.dto.AuthRequest;
 import com.clinic.webapi.dto.AuthResponse;
 import com.clinic.webapi.dto.RegisterRequest;
-import com.clinic.webapi.model.entity.User;
+import com.clinic.webapi.dto.RegisterResponse;
+import com.clinic.webapi.model.entity.Usuario;
 import com.clinic.webapi.security.JwtService;
 import com.clinic.webapi.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
 import java.util.stream.Collectors;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserService userService;
-    private final JwtService jwtService;
-    private final PasswordEncoder passwordEncoder;
+  private final UserService userService;
+  private final JwtService jwtService;
+  private final AuthenticationManager authenticationManager;
 
-    @PostMapping("/register")
-    public User register(@RequestBody RegisterRequest request) {
-        return userService.registerUser(request);
+  /**
+   * Endpoint para registrar nuevos empleados/usuarios.
+   * Solo accesible por usuarios con el rol 'ADMINISTRADOR'.
+   */
+  @PreAuthorize("hasRole('ADMINISTRADOR')") // Restricción de acceso
+  @PostMapping("/register")
+  public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+    try {
+      RegisterResponse response = userService.registerUser(request);
+      return new ResponseEntity<>(response, HttpStatus.CREATED);
+    } catch (RuntimeException e) {
+      return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
+  }
 
-    @PostMapping("/login")
-    public AuthResponse login(@RequestBody AuthRequest request) {
-        User user = userService.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+  /**
+   * Endpoint para el inicio de sesión.
+   */
+  @PostMapping("/login")
+  public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) { // Devolver ResponseEntity<?>
+    try {
+      // 1. Intenta autenticar. Si falla, Spring lanzará BadCredentialsException o UsernameNotFoundException
+      Authentication authentication = authenticationManager.authenticate(
+          new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+      );
+      SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Invalid email or password");
-        }
+      // 2. Si la autenticación es exitosa, buscamos al usuario para generar el token
+      Usuario usuario = userService.findByEmail(request.getEmail())
+          .orElseThrow(() -> new RuntimeException("Error interno: usuario autenticado no encontrado."));
 
-        Set<String> roles = user.getRoles().stream()
-                .map(r -> r.getName())
-                .collect(Collectors.toSet());
+      Set<String> roles = usuario.getRoles().stream()
+          .map(r -> r.getNombre())
+          .collect(Collectors.toSet());
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail(), roles);
+      String token = jwtService.generateToken(usuario.getId(), usuario.getEmail(), roles);
 
-        return new AuthResponse(token, "Bearer");
+      AuthResponse response = new AuthResponse(token, "Bearer", usuario.getEmail(), roles);
+
+      return ResponseEntity.ok(response);
+
+    } catch (UsernameNotFoundException e) {
+      // Caso 1: Usuario NO REGISTRADO (UsernameNotFoundException del UserDetailsService)
+      return ResponseEntity
+          .status(HttpStatus.UNAUTHORIZED) // 401
+          .body("Usuario no registrado. Por favor, solicite el registro a un administrador.");
+
+    } catch (BadCredentialsException e) {
+      // Caso 2: Contraseña INCORRECTA (BadCredentialsException de Spring Security)
+      return ResponseEntity
+          .status(HttpStatus.UNAUTHORIZED) // 401
+          .body("Credenciales incorrectas. Verifique su email y contraseña.");
+
+    } catch (Exception e) {
+      // Caso 3: Otros errores inesperados
+      return ResponseEntity
+          .status(HttpStatus.INTERNAL_SERVER_ERROR) // 500
+          .body("Error en el proceso de login: " + e.getMessage());
     }
+  }
 }
-
