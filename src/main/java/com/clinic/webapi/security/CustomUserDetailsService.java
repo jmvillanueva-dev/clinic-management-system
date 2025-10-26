@@ -3,6 +3,7 @@ package com.clinic.webapi.security;
 import com.clinic.webapi.model.entity.Usuario;
 import com.clinic.webapi.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -19,6 +20,10 @@ public class CustomUserDetailsService implements UserDetailsService {
   public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
     Usuario usuario = usuarioRepository.findByEmail(email)
         .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado con email: " + email));
+
+    if (!usuario.isEstaVerificado()) {
+      throw new DisabledException("La cuenta no ha sido verificada. Revisa tu correo electrónico.");
+    }
 
     // 1. Obtener la lista de nombres de roles con el prefijo "ROLE_"
     String[] authorities = usuario.getRoles().stream()

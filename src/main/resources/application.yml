@@ -4,6 +4,7 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -12,8 +13,21 @@ spring:
         format_sql: true
         jdbc.lob.non_contextual_creation: true
     show-sql: true
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+          ssl:
+            trust: ${MAIL_SMTP_SSL_TRUST:smtp.gmail.com}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 3600000
-
-

@@ -11,6 +11,7 @@ import com.clinic.webapi.model.entity.Usuario;
 import com.clinic.webapi.repository.EmpleadoRepository;
 import com.clinic.webapi.repository.RolRepository;
 import com.clinic.webapi.repository.UsuarioRepository;
+import com.clinic.webapi.util.PasswordGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,11 @@ public class UserService {
   private final RolRepository rolRepository;
   private final EmpleadoRepository empleadoRepository;
   private final PasswordEncoder passwordEncoder;
+  private final EmailService emailService;
+  private final PasswordGenerator passwordGenerator;
 
   private static final String ADMIN_ROLE_NAME = "ADMINISTRADOR";
+  private static final int TEMP_PASS_LENGTH = 12;
 
   // Metodo auxiliar para validar si el usuario tiene rol de ADMIN
   private boolean isAdmin(Usuario usuario) {
@@ -165,6 +169,9 @@ public class UserService {
       throw new RuntimeException("La cédula ya está registrada.");
     }
 
+    String contrasenaTemporal = passwordGenerator.generarContrasenaTemporal(TEMP_PASS_LENGTH);
+    String tokenVerificacion = passwordGenerator.generarTokenVerificacion();
+
     // 2. Crear y guardar Empleado
     Empleado empleado = Empleado.builder()
         .nombre(request.getNombre())
@@ -186,15 +193,19 @@ public class UserService {
     // 4. Crear y guardar Usuario
     Usuario usuario = Usuario.builder()
         .email(request.getEmail())
-        .passwordHash(passwordEncoder.encode(request.getPassword()))
+        .passwordHash(passwordEncoder.encode(contrasenaTemporal))
         .empleado(empleado)
         .estaActivo(true)
-        .estaVerificado(true)
+        .estaVerificado(false)
+        .tokenVerificacion(tokenVerificacion)
         .roles(roles)
         .build();
     usuario = usuarioRepository.save(usuario);
 
-    // 5. Devolver RegisterResponse
+    // 5. Enviar Correo de Notificacion
+    emailService.enviarCorreoRegistro(usuario, contrasenaTemporal, tokenVerificacion);
+
+    // 6. Devolver RegisterResponse
     return RegisterResponse.builder()
         .idUsuario(usuario.getId())
         .email(usuario.getEmail())
@@ -236,6 +247,21 @@ public class UserService {
 
     // 2. Si no es ADMIN, solo puede acceder a su propio perfil
     return usuario.getEmpleado() != null && usuario.getEmpleado().getId().equals(empleadoId);
+  }
+
+  // Metodo para validar el token y actualizar su estado
+  @Transactional
+  public void verifyUserAccount(String token) {
+    Usuario usuario = usuarioRepository.findByTokenVerificacion(token)
+        .orElseThrow(() -> new RuntimeException("Token de verificación inválido o expirado."));
+
+    if (usuario.isEstaVerificado()) {
+      throw new RuntimeException("Esta cuenta ya ha sido verificada.");
+    }
+
+    usuario.setEstaVerificado(true);
+    usuario.setTokenVerificacion(null);
+    usuarioRepository.save(usuario);
   }
 
 }

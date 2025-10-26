@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -44,6 +45,19 @@ public class AuthController {
       return new ResponseEntity<>(response, HttpStatus.CREATED);
     } catch (RuntimeException e) {
       return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  /**
+   * Endpoint para verificar cuenta nuevos empleados/usuarios.
+   */
+  @PostMapping("/verify/{token}")
+  public ResponseEntity<String> verifyAccount(@PathVariable String token) {
+    try {
+      userService.verifyUserAccount(token);
+      return ResponseEntity.ok("Cuenta verificada exitosamente. Ahora puede iniciar sesión.");
+    } catch (RuntimeException e) {
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -84,6 +98,12 @@ public class AuthController {
       return ResponseEntity
           .status(HttpStatus.UNAUTHORIZED) // 401
           .body("Credenciales incorrectas. Verifique su email y contraseña.");
+
+    } catch (DisabledException e) {
+      // Caso 3: Manejo de cuenta no verificada
+      return ResponseEntity
+          .status(HttpStatus.UNAUTHORIZED) // 401
+          .body(e.getMessage());
 
     } catch (Exception e) {
       // Caso 3: Otros errores inesperados

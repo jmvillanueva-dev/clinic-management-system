@@ -19,4 +19,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
   List<Usuario> findAllByEmpleado(Empleado empleado);
 
   Optional<Usuario> findByEmpleado(Empleado empleado);
+
+  Optional<Usuario> findByTokenVerificacion(String token);
 }
