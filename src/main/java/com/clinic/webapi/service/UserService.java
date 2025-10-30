@@ -45,6 +45,11 @@ public class UserService {
         .orElseThrow(() -> new RuntimeException("Empleado no encontrado con ID: " + id));
   }
 
+  // Obtener todos los empleados activos
+  public List<Empleado> findAllActiveEmpleados() {
+    return empleadoRepository.findAllByEstaActivo(true);
+  }
+
   // --- 1. CRUD de Empleado y Actualización de Email de Usuario (Compartido por ADMIN) ---
 
   @Transactional
@@ -223,6 +228,10 @@ public class UserService {
 
   public Optional<Usuario> findByEmail(String email) {
     return usuarioRepository.findByEmail(email);
+  }
+
+  public Optional<Usuario> findByEmpleado(Empleado empleado) {
+    return usuarioRepository.findByEmpleado(empleado);
   }
 
 

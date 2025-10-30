@@ -16,6 +16,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -47,18 +49,47 @@ public class EmpleadoController {
 
   // --- 1. CRUD Empleados (ADMIN: CRUD; Empleado: R, U propio) ---
 
+  // Obtener todos los empleados activos (Solo ADMIN)
+  @GetMapping
+  @PreAuthorize("hasRole('ADMINISTRADOR')")
+  public ResponseEntity<List<EmpleadoResponse>> obtenerTodosLosEmpleadosActivos() {
+    List<Empleado> empleados = userService.findAllActiveEmpleados();
+    List<EmpleadoResponse> responses = empleados.stream()
+        .map(empleado -> {
+          Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleado);
+          String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
+          return EmpleadoResponse.builder()
+              .id(empleado.getId())
+              .nombre(empleado.getNombre())
+              .apellido(empleado.getApellido())
+              .email(email)
+              .cedula(empleado.getCedula())
+              .especialidad(empleado.getEspecialidad())
+              .codigoProfesional(empleado.getCodigoProfesional())
+              .telefono(empleado.getTelefono())
+              .estaActivo(empleado.isEstaActivo())
+              .fechaCreacion(empleado.getFechaCreacion())
+              .build();
+        })
+        .collect(Collectors.toList());
+    return ResponseEntity.ok(responses);
+  }
+
   // Obtener un empleado por ID (Cualquier empleado puede verlo, ADMIN: CRUD)
   @GetMapping("/{id}")
   @PreAuthorize("@userService.canAccessEmpleadoById(principal, #id)")
   public ResponseEntity<EmpleadoResponse> obtenerEmpleadoPorId(@PathVariable UUID id) {
     try {
       Empleado empleado = userService.findEmpleadoById(id);
+      Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleado);
+      String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
 
       // Mapear Empleado a EmpleadoResponse
       EmpleadoResponse response = EmpleadoResponse.builder()
           .id(empleado.getId())
           .nombre(empleado.getNombre())
           .apellido(empleado.getApellido())
+          .email(email)
           .cedula(empleado.getCedula())
           .especialidad(empleado.getEspecialidad())
           .codigoProfesional(empleado.getCodigoProfesional())
@@ -85,11 +116,14 @@ public class EmpleadoController {
 
     try {
       Empleado empleadoActualizado = userService.actualizarEmpleado(id, request, userId);
+      Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleadoActualizado);
+      String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
 
       EmpleadoResponse response = EmpleadoResponse.builder()
           .id(empleadoActualizado.getId())
           .nombre(empleadoActualizado.getNombre())
           .apellido(empleadoActualizado.getApellido())
+          .email(email)
           .cedula(empleadoActualizado.getCedula())
           .especialidad(empleadoActualizado.getEspecialidad())
           .codigoProfesional(empleadoActualizado.getCodigoProfesional())

@@ -4,6 +4,8 @@ import com.clinic.webapi.dto.AuthRequest;
 import com.clinic.webapi.dto.AuthResponse;
 import com.clinic.webapi.dto.RegisterRequest;
 import com.clinic.webapi.dto.RegisterResponse;
+import com.clinic.webapi.model.entity.Empleado;
+import com.clinic.webapi.model.entity.Rol;
 import com.clinic.webapi.model.entity.Usuario;
 import com.clinic.webapi.security.JwtService;
 import com.clinic.webapi.service.UserService;
@@ -37,14 +39,14 @@ public class AuthController {
    * Endpoint para registrar nuevos empleados/usuarios.
    * Solo accesible por usuarios con el rol 'ADMINISTRADOR'.
    */
-  @PreAuthorize("hasRole('ADMINISTRADOR')") // Restricción de acceso
+  @PreAuthorize("hasRole('ADMINISTRADOR')")
   @PostMapping("/register")
-  public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+  public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
     try {
       RegisterResponse response = userService.registerUser(request);
       return new ResponseEntity<>(response, HttpStatus.CREATED);
     } catch (RuntimeException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -78,12 +80,14 @@ public class AuthController {
           .orElseThrow(() -> new RuntimeException("Error interno: usuario autenticado no encontrado."));
 
       Set<String> roles = usuario.getRoles().stream()
-          .map(r -> r.getNombre())
+          .map(Rol::getNombre)
           .collect(Collectors.toSet());
 
       String token = jwtService.generateToken(usuario.getId(), usuario.getEmail(), roles);
 
-      AuthResponse response = new AuthResponse(token, "Bearer", usuario.getEmail(), roles);
+      Empleado empleado = usuario.getEmpleado();
+
+      AuthResponse response = new AuthResponse(token, "Bearer", usuario.getEmail(), roles, empleado.getId(), empleado.getNombre(), empleado.getApellido());
 
       return ResponseEntity.ok(response);
 
