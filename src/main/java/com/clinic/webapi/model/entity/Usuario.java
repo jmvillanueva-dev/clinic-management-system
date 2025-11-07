@@ -1,5 +1,6 @@
 package com.clinic.webapi.model.entity;
 
+import com.clinic.webapi.util.EntityAuditListener;
 import lombok.*;
 import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -13,6 +14,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "usuarios")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@EntityListeners(EntityAuditListener.class)
 public class Usuario {
 
   @Id
@@ -39,10 +41,10 @@ public class Usuario {
   private boolean estaVerificado = false;
 
   @Column(name = "fecha_creacion", updatable = false)
-  private Instant fechaCreacion = Instant.now();
+  private Instant fechaCreacion;
 
   @Column(name = "fecha_actualizacion")
-  private Instant fechaActualizacion = Instant.now();
+  private Instant fechaActualizacion;
 
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(

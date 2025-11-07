@@ -1,5 +1,6 @@
 package com.clinic.webapi.model.entity;
 
+import com.clinic.webapi.util.EntityAuditListener;
 import lombok.*;
 import jakarta.persistence.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -10,6 +11,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "roles")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@EntityListeners(EntityAuditListener.class)
 public class Rol {
 
   @Id
@@ -25,8 +27,8 @@ public class Rol {
   private String descripcion;
 
   @Column(name = "fecha_creacion", updatable = false)
-  private Instant fechaCreacion = Instant.now();
+  private Instant fechaCreacion;
 
   @Column(name = "fecha_actualizacion")
-  private Instant fechaActualizacion = Instant.now();
+  private Instant fechaActualizacion;
 }

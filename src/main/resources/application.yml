@@ -7,11 +7,13 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
         jdbc.lob.non_contextual_creation: true
+        jdbc.time_zone: UTC
+        dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
 
   mail:
