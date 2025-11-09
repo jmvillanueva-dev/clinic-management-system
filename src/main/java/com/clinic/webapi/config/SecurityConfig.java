@@ -1,7 +1,7 @@
 package com.clinic.webapi.config;
 
-import com.clinic.webapi.security.JwtAuthenticationFilter;
-import com.clinic.webapi.security.JwtService;
+import com.clinic.webapi.shared.security.JwtAuthenticationFilter;
+import com.clinic.webapi.shared.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
