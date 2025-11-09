@@ -1,5 +1,6 @@
 package com.clinic.webapi.controller;
 
+import com.clinic.webapi.dto.ApiResponse;
 import com.clinic.webapi.dto.EmpleadoUpdateRequest;
 import com.clinic.webapi.dto.UsuarioEmailUpdateRequest;
 import com.clinic.webapi.dto.UsuarioPasswordUpdateRequest;
@@ -29,7 +30,7 @@ public class EmpleadoController {
 
   private final UserService userService;
 
-  // Metodo auxiliar para mapear Usuario a UsuarioResponse
+  // Método auxiliar para mapear Usuario a UsuarioResponse
   private UsuarioResponse mapToUsuarioResponse(Usuario usuario) {
     Set<String> roles = usuario.getRoles().stream()
         .map(rol -> rol.getNombre())
@@ -42,7 +43,6 @@ public class EmpleadoController {
         .estaVerificado(usuario.isEstaVerificado())
         .fechaActualizacion(usuario.getFechaActualizacion())
         .roles(roles)
-        // Necesitas el ID del empleado para el DTO
         .idEmpleado(usuario.getEmpleado() != null ? usuario.getEmpleado().getId() : null)
         .build();
   }
@@ -52,7 +52,7 @@ public class EmpleadoController {
   // Obtener todos los empleados activos (Solo ADMIN)
   @GetMapping
   @PreAuthorize("hasRole('ADMINISTRADOR')")
-  public ResponseEntity<List<EmpleadoResponse>> obtenerTodosLosEmpleadosActivos() {
+  public ResponseEntity<ApiResponse<List<EmpleadoResponse>>> obtenerTodosLosEmpleadosActivos() {
     List<Empleado> empleados = userService.findAllActiveEmpleados();
     List<EmpleadoResponse> responses = empleados.stream()
         .map(empleado -> {
@@ -72,19 +72,18 @@ public class EmpleadoController {
               .build();
         })
         .collect(Collectors.toList());
-    return ResponseEntity.ok(responses);
+    return ResponseEntity.ok(ApiResponse.success("Empleados obtenidos exitosamente", responses));
   }
 
   // Obtener un empleado por ID (Cualquier empleado puede verlo, ADMIN: CRUD)
   @GetMapping("/{id}")
   @PreAuthorize("@userService.canAccessEmpleadoById(principal, #id)")
-  public ResponseEntity<EmpleadoResponse> obtenerEmpleadoPorId(@PathVariable UUID id) {
+  public ResponseEntity<ApiResponse<EmpleadoResponse>> obtenerEmpleadoPorId(@PathVariable UUID id) {
     try {
       Empleado empleado = userService.findEmpleadoById(id);
       Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleado);
       String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
 
-      // Mapear Empleado a EmpleadoResponse
       EmpleadoResponse response = EmpleadoResponse.builder()
           .id(empleado.getId())
           .nombre(empleado.getNombre())
@@ -98,19 +97,19 @@ public class EmpleadoController {
           .fechaCreacion(empleado.getFechaCreacion())
           .build();
 
-      return ResponseEntity.ok(response);
+      return ResponseEntity.ok(ApiResponse.success("Empleado obtenido exitosamente", response));
     } catch (RuntimeException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 
   // Actualizar datos de Empleado (ADMIN: cualquiera; Empleado: solo el suyo)
   @PutMapping("/{id}")
   @PreAuthorize("@userService.canAccessEmpleadoById(principal, #id)")
-// CAMBIO 1: Cambiar tipo de retorno a EmpleadoResponse
-  public ResponseEntity<EmpleadoResponse> actualizarEmpleado(@PathVariable UUID id,
-                                                             @Valid @RequestBody EmpleadoUpdateRequest request,
-                                                             @AuthenticationPrincipal String userIdString) {
+  public ResponseEntity<ApiResponse<EmpleadoResponse>> actualizarEmpleado(@PathVariable UUID id,
+                                                                          @Valid @RequestBody EmpleadoUpdateRequest request,
+                                                                          @AuthenticationPrincipal String userIdString) {
 
     UUID userId = UUID.fromString(userIdString);
 
@@ -132,30 +131,33 @@ public class EmpleadoController {
           .fechaCreacion(empleadoActualizado.getFechaCreacion())
           .build();
 
-      return ResponseEntity.ok(response);
+      return ResponseEntity.ok(ApiResponse.success("Empleado actualizado exitosamente", response));
     } catch (SecurityException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(ApiResponse.error(e.getMessage()));
     } catch (RuntimeException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 
   // "Eliminar" (Desactivar) Empleado (Solo ADMIN)
   @DeleteMapping("/{id}")
   @PreAuthorize("hasRole('ADMINISTRADOR')")
-  public ResponseEntity<Void> eliminarEmpleado(@PathVariable UUID id, @AuthenticationPrincipal String userEmail) {
+  public ResponseEntity<ApiResponse<Void>> eliminarEmpleado(@PathVariable UUID id, @AuthenticationPrincipal String userEmail) {
     try {
-      // Buscar el usuario por email para obtener el UUID
       UUID userId = userService.findByEmail(userEmail)
           .orElseThrow(() -> new RuntimeException("Usuario autenticado no encontrado."))
           .getId();
 
       userService.eliminarEmpleado(id, userId);
-      return ResponseEntity.noContent().build();
+      return ResponseEntity.ok(ApiResponse.success("Empleado desactivado exitosamente"));
     } catch (SecurityException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(ApiResponse.error(e.getMessage()));
     } catch (RuntimeException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.NOT_FOUND);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 
@@ -164,36 +166,38 @@ public class EmpleadoController {
   // Actualizar Email de Usuario (ADMIN: cualquiera; Empleado: solo el suyo)
   @PutMapping("/{id}/email")
   @PreAuthorize("@userService.canAccessEmpleadoById(principal, #id)")
-  public ResponseEntity<UsuarioResponse> actualizarEmailUsuario(@PathVariable UUID id,
-                                                                @Valid @RequestBody UsuarioEmailUpdateRequest request,
-                                                                @AuthenticationPrincipal String userIdString) {
+  public ResponseEntity<ApiResponse<UsuarioResponse>> actualizarEmailUsuario(@PathVariable UUID id,
+                                                                             @Valid @RequestBody UsuarioEmailUpdateRequest request,
+                                                                             @AuthenticationPrincipal String userIdString) {
     UUID userId = UUID.fromString(userIdString);
 
     try {
       Usuario usuarioActualizado = userService.actualizarUsuarioEmail(id, request, userId);
-
-      return ResponseEntity.ok(mapToUsuarioResponse(usuarioActualizado));
+      return ResponseEntity.ok(ApiResponse.success("Email actualizado exitosamente", mapToUsuarioResponse(usuarioActualizado)));
     } catch (SecurityException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.FORBIDDEN);
+      return ResponseEntity.status(HttpStatus.FORBIDDEN)
+          .body(ApiResponse.error(e.getMessage()));
     } catch (RuntimeException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 
   // Actualizar Contraseña del Usuario logueado (Solo Empleado logueado)
   @PutMapping("/me/password")
-  public ResponseEntity<UsuarioResponse> actualizarPasswordUsuario(@Valid @RequestBody UsuarioPasswordUpdateRequest request,
-                                                                   @AuthenticationPrincipal String userIdString) {
+  public ResponseEntity<ApiResponse<UsuarioResponse>> actualizarPasswordUsuario(@Valid @RequestBody UsuarioPasswordUpdateRequest request,
+                                                                                @AuthenticationPrincipal String userIdString) {
     UUID userId = UUID.fromString(userIdString);
 
     try {
       Usuario usuarioActualizado = userService.actualizarUsuarioPassword(request, userId);
-
-      return ResponseEntity.ok(mapToUsuarioResponse(usuarioActualizado));
+      return ResponseEntity.ok(ApiResponse.success("Contraseña actualizada exitosamente", mapToUsuarioResponse(usuarioActualizado)));
     } catch (IllegalArgumentException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.UNAUTHORIZED);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error(e.getMessage()));
     } catch (RuntimeException e) {
-      return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 }

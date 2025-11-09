@@ -1,5 +1,6 @@
 package com.clinic.webapi.controller;
 
+import com.clinic.webapi.dto.ApiResponse;
 import com.clinic.webapi.dto.AuthRequest;
 import com.clinic.webapi.dto.AuthResponse;
 import com.clinic.webapi.dto.RegisterRequest;
@@ -41,12 +42,13 @@ public class AuthController {
    */
   @PreAuthorize("hasRole('ADMINISTRADOR')")
   @PostMapping("/register")
-  public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+  public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
     try {
       RegisterResponse response = userService.registerUser(request);
-      return new ResponseEntity<>(response, HttpStatus.CREATED);
+      return ResponseEntity.ok(ApiResponse.success("Usuario registrado exitosamente", response));
     } catch (RuntimeException e) {
-      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+      return ResponseEntity.badRequest()
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 
@@ -54,12 +56,13 @@ public class AuthController {
    * Endpoint para verificar cuenta nuevos empleados/usuarios.
    */
   @PostMapping("/verify/{token}")
-  public ResponseEntity<String> verifyAccount(@PathVariable String token) {
+  public ResponseEntity<ApiResponse<Void>> verifyAccount(@PathVariable String token) {
     try {
       userService.verifyUserAccount(token);
-      return ResponseEntity.ok("Cuenta verificada exitosamente. Ahora puede iniciar sesión.");
+      return ResponseEntity.ok(ApiResponse.success("Cuenta verificada exitosamente. Ahora puede iniciar sesión."));
     } catch (RuntimeException e) {
-      return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+      return ResponseEntity.badRequest()
+          .body(ApiResponse.error(e.getMessage()));
     }
   }
 
@@ -67,9 +70,9 @@ public class AuthController {
    * Endpoint para el inicio de sesión.
    */
   @PostMapping("/login")
-  public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) { // Devolver ResponseEntity<?>
+  public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody AuthRequest request) {
     try {
-      // 1. Intenta autenticar. Si falla, Spring lanzará BadCredentialsException o UsernameNotFoundException
+      // 1. Intenta autenticar
       Authentication authentication = authenticationManager.authenticate(
           new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
       );
@@ -84,36 +87,28 @@ public class AuthController {
           .collect(Collectors.toSet());
 
       String token = jwtService.generateToken(usuario.getId(), usuario.getEmail(), roles);
-
       Empleado empleado = usuario.getEmpleado();
 
-      AuthResponse response = new AuthResponse(token, "Bearer", usuario.getEmail(), roles, empleado.getId(), empleado.getNombre(), empleado.getApellido());
+      AuthResponse response = new AuthResponse(token, "Bearer", usuario.getEmail(), roles,
+          empleado.getId(), empleado.getNombre(), empleado.getApellido());
 
-      return ResponseEntity.ok(response);
+      return ResponseEntity.ok(ApiResponse.success("Inicio de sesión exitoso", response));
 
     } catch (UsernameNotFoundException e) {
-      // Caso 1: Usuario NO REGISTRADO (UsernameNotFoundException del UserDetailsService)
-      return ResponseEntity
-          .status(HttpStatus.UNAUTHORIZED) // 401
-          .body("Usuario no registrado. Por favor, solicite el registro a un administrador.");
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error("Usuario no registrado. Por favor, solicite el registro a un administrador."));
 
     } catch (BadCredentialsException e) {
-      // Caso 2: Contraseña INCORRECTA (BadCredentialsException de Spring Security)
-      return ResponseEntity
-          .status(HttpStatus.UNAUTHORIZED) // 401
-          .body("Credenciales incorrectas. Verifique su email y contraseña.");
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error("Credenciales incorrectas. Verifique su email y contraseña."));
 
     } catch (DisabledException e) {
-      // Caso 3: Manejo de cuenta no verificada
-      return ResponseEntity
-          .status(HttpStatus.UNAUTHORIZED) // 401
-          .body(e.getMessage());
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error(e.getMessage()));
 
     } catch (Exception e) {
-      // Caso 3: Otros errores inesperados
-      return ResponseEntity
-          .status(HttpStatus.INTERNAL_SERVER_ERROR) // 500
-          .body("Error en el proceso de login: " + e.getMessage());
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.error("Error en el proceso de login: " + e.getMessage()));
     }
   }
 }
