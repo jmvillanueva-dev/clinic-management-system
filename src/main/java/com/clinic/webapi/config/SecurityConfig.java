@@ -58,6 +58,7 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             // Permitir login y register, la restricción de rol en /register se hará con @PreAuthorize
             .requestMatchers("/api/v1/auth/**").permitAll()
+            .requestMatchers("/api/v1/auth/verify/**").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
