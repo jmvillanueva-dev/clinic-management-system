@@ -1,10 +1,9 @@
 package com.clinic.webapi.modules.pacientes.service;
 
-import com.clinic.webapi.modules.catalogos.service.CatalogoService;
+import com.clinic.webapi.modules.historiasclinicas.service.HistoriaClinicaService;
 import com.clinic.webapi.modules.pacientes.dto.PacienteRequest;
 import com.clinic.webapi.modules.pacientes.dto.PacienteResponse;
 import com.clinic.webapi.modules.pacientes.model.entity.Paciente;
-
 import com.clinic.webapi.modules.pacientes.model.mapper.PacienteMapper;
 import com.clinic.webapi.modules.pacientes.repository.PacienteRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +19,7 @@ import java.util.stream.Collectors;
 public class PacienteService {
 
   private final PacienteRepository pacienteRepository;
-  private final CatalogoService catalogoService;
+  private final HistoriaClinicaService historiaClinicaService;
   private final PacienteMapper pacienteMapper;
 
   @Transactional
@@ -33,6 +32,16 @@ public class PacienteService {
     // Mapear y guardar
     Paciente paciente = pacienteMapper.toEntity(request);
     Paciente pacienteGuardado = pacienteRepository.save(paciente);
+
+    // Crear historia clínica automáticamente
+    try {
+      historiaClinicaService.crearHistoriaClinicaAutomatica(pacienteGuardado);
+      System.out.println("Historia clínica creada automáticamente para el paciente: " + pacienteGuardado.getCedula());
+    } catch (Exception e) {
+      // Log del error pero no revertir la creación del paciente
+      System.err.println("Error creando historia clínica automática: " + e.getMessage());
+      // Podrías enviar una notificación o registrar en logs de aplicación
+    }
 
     return pacienteMapper.toResponse(pacienteGuardado);
   }
