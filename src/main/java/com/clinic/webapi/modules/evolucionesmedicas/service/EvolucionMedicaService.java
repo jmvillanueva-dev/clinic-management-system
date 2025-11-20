@@ -4,7 +4,6 @@ import com.clinic.webapi.modules.empleados.entity.Empleado;
 import com.clinic.webapi.modules.empleados.repository.EmpleadoRepository;
 import com.clinic.webapi.modules.evolucionesmedicas.dto.*;
 import com.clinic.webapi.modules.evolucionesmedicas.entity.*;
-import com.clinic.webapi.modules.evolucionesmedicas.model.mapper.EvolucionMedicaMapper;
 import com.clinic.webapi.modules.evolucionesmedicas.repository.*;
 import com.clinic.webapi.modules.historiasclinicas.entity.HistoriaClinica;
 import com.clinic.webapi.modules.historiasclinicas.repository.HistoriaClinicaRepository;
@@ -27,7 +26,6 @@ public class EvolucionMedicaService {
   private final EvolucionMedicaRepository evolucionMedicaRepository;
   private final HistoriaClinicaRepository historiaClinicaRepository;
   private final EmpleadoRepository empleadoRepository;
-  private final EvolucionMedicaMapper evolucionMedicaMapper;
 
   // Repositories para las secciones
   private final EvolucionMotivoAtencionRepository motivoAtencionRepository;
@@ -67,72 +65,82 @@ public class EvolucionMedicaService {
     // Procesar secciones opcionales
     procesarSecciones(evolucionGuardada, request);
 
-    return obtenerEvolucionMedicaCompleta(evolucionGuardada.getId());
+    return construirResponseCompleto(evolucionGuardada);
   }
 
   private void procesarSecciones(EvolucionMedica evolucionMedica, EvolucionMedicaRequest request) {
     // 1. Motivo de atención
     if (request.getMotivoAtencion() != null) {
-      crearMotivoAtencion(evolucionMedica, request.getMotivoAtencion());
+      var motivo = crearMotivoAtencion(evolucionMedica, request.getMotivoAtencion());
+      evolucionMedica.setMotivoAtencion(motivo);
     }
 
     // 2. Antecedentes del incidente
     if (request.getAntecedentesIncidente() != null) {
-      crearAntecedentesIncidente(evolucionMedica, request.getAntecedentesIncidente());
+      var antecedentes = crearAntecedentesIncidente(evolucionMedica, request.getAntecedentesIncidente());
+      evolucionMedica.setAntecedentesIncidente(antecedentes);
     }
 
-    // 3. Signos vitales (con cálculo automático de IMC)
+    // 3. Signos vitales
     if (request.getSignosVitales() != null) {
-      crearSignosVitales(evolucionMedica, request.getSignosVitales());
+      var signos = crearSignosVitales(evolucionMedica, request.getSignosVitales());
+      evolucionMedica.setSignosVitales(signos);
     }
 
     // 4. Valoración clínica
     if (request.getValoracionClinica() != null) {
-      crearValoracionClinica(evolucionMedica, request.getValoracionClinica());
+      var valoracion = crearValoracionClinica(evolucionMedica, request.getValoracionClinica());
+      evolucionMedica.setValoracionClinica(valoracion);
     }
 
-    // 5. Localización de lesiones
+    // 5. Localización de lesiones (Listas)
     if (request.getLocalizacionLesiones() != null && !request.getLocalizacionLesiones().isEmpty()) {
-      crearLocalizacionLesiones(evolucionMedica, request.getLocalizacionLesiones());
+      var lesiones = crearLocalizacionLesiones(evolucionMedica, request.getLocalizacionLesiones());
+      evolucionMedica.setLocalizacionLesiones(lesiones);
     }
 
     // 6. Exámenes solicitados
     if (request.getExamenesSolicitados() != null && !request.getExamenesSolicitados().isEmpty()) {
-      crearExamenesSolicitados(evolucionMedica, request.getExamenesSolicitados());
+      var examenes = crearExamenesSolicitados(evolucionMedica, request.getExamenesSolicitados());
+      evolucionMedica.setExamenesSolicitados(examenes);
     }
 
     // 7. Diagnósticos
     if (request.getDiagnosticos() != null && !request.getDiagnosticos().isEmpty()) {
-      crearDiagnosticos(evolucionMedica, request.getDiagnosticos());
+      var diagnosticos = crearDiagnosticos(evolucionMedica, request.getDiagnosticos());
+      evolucionMedica.setDiagnosticos(diagnosticos);
     }
 
-    // 8. Planes de tratamiento con indicaciones
+    // 8. Planes de tratamiento
     if (request.getPlanesTratamiento() != null && !request.getPlanesTratamiento().isEmpty()) {
-      crearPlanesTratamiento(evolucionMedica, request.getPlanesTratamiento());
+      var planes = crearPlanesTratamiento(evolucionMedica, request.getPlanesTratamiento());
+      evolucionMedica.setPlanesTratamiento(planes);
     }
 
     // 9. Emergencia obstétrica
     if (request.getEmergenciaObstetrica() != null) {
-      crearEmergenciaObstetrica(evolucionMedica, request.getEmergenciaObstetrica());
+      var emergencia = crearEmergenciaObstetrica(evolucionMedica, request.getEmergenciaObstetrica());
+      evolucionMedica.setEmergenciaObstetrica(emergencia);
     }
 
     // 10. Alta médica
     if (request.getAltaMedica() != null) {
-      crearAltaMedica(evolucionMedica, request.getAltaMedica());
+      var alta = crearAltaMedica(evolucionMedica, request.getAltaMedica());
+      evolucionMedica.setAltaMedica(alta);
     }
   }
 
   // Métodos auxiliares para crear cada sección
-  private void crearMotivoAtencion(EvolucionMedica evolucionMedica, EvolucionMotivoAtencionRequest request) {
+  private EvolucionMotivoAtencion crearMotivoAtencion(EvolucionMedica evolucionMedica, EvolucionMotivoAtencionRequest request) {
     EvolucionMotivoAtencion motivoAtencion = EvolucionMotivoAtencion.builder()
         .evolucionMedica(evolucionMedica)
         .motivoConsulta(request.getMotivoConsulta())
         .enfermedadActual(request.getEnfermedadActual())
         .build();
-    motivoAtencionRepository.save(motivoAtencion);
+    return motivoAtencionRepository.save(motivoAtencion);
   }
 
-  private void crearAntecedentesIncidente(EvolucionMedica evolucionMedica, EvolucionAntecedentesIncidenteRequest request) {
+  private EvolucionAntecedentesIncidente crearAntecedentesIncidente(EvolucionMedica evolucionMedica, EvolucionAntecedentesIncidenteRequest request) {
     EvolucionAntecedentesIncidente antecedentes = EvolucionAntecedentesIncidente.builder()
         .evolucionMedica(evolucionMedica)
         .antecedentesPersonales(request.getAntecedentesPersonales())
@@ -141,10 +149,10 @@ public class EvolucionMedicaService {
         .alergias(request.getAlergias())
         .medicamentosActuales(request.getMedicamentosActuales())
         .build();
-    antecedentesIncidenteRepository.save(antecedentes);
+    return antecedentesIncidenteRepository.save(antecedentes);
   }
 
-  private void crearSignosVitales(EvolucionMedica evolucionMedica, EvolucionSignosVitalesRequest request) {
+  private EvolucionSignosVitales crearSignosVitales(EvolucionMedica evolucionMedica, EvolucionSignosVitalesRequest request) {
     // Calcular IMC automáticamente si hay peso y talla
     BigDecimal imc = null;
     if (request.getPeso() != null && request.getTalla() != null && request.getTalla().compareTo(BigDecimal.ZERO) > 0) {
@@ -166,10 +174,10 @@ public class EvolucionMedicaService {
         .imc(imc)
         .glucosa(request.getGlucosa())
         .build();
-    signosVitalesRepository.save(signosVitales);
+    return signosVitalesRepository.save(signosVitales);
   }
 
-  private void crearValoracionClinica(EvolucionMedica evolucionMedica, EvolucionValoracionClinicaRequest request) {
+  private EvolucionValoracionClinica crearValoracionClinica(EvolucionMedica evolucionMedica, EvolucionValoracionClinicaRequest request) {
     EvolucionValoracionClinica valoracionClinica = EvolucionValoracionClinica.builder()
         .evolucionMedica(evolucionMedica)
         .inspeccionGeneral(request.getInspeccionGeneral())
@@ -181,10 +189,10 @@ public class EvolucionMedicaService {
         .pielTegumentos(request.getPielTegumentos())
         .otrosHallazgos(request.getOtrosHallazgos())
         .build();
-    valoracionClinicaRepository.save(valoracionClinica);
+    return valoracionClinicaRepository.save(valoracionClinica);
   }
 
-  private void crearLocalizacionLesiones(EvolucionMedica evolucionMedica, List<EvolucionLocalizacionLesionesRequest> requests) {
+  private List<EvolucionLocalizacionLesiones> crearLocalizacionLesiones(EvolucionMedica evolucionMedica, List<EvolucionLocalizacionLesionesRequest> requests) {
     List<EvolucionLocalizacionLesiones> lesiones = requests.stream()
         .map(request -> EvolucionLocalizacionLesiones.builder()
             .evolucionMedica(evolucionMedica)
@@ -194,10 +202,10 @@ public class EvolucionMedicaService {
             .gravedad(request.getGravedad())
             .build())
         .collect(Collectors.toList());
-    localizacionLesionesRepository.saveAll(lesiones);
+    return localizacionLesionesRepository.saveAll(lesiones);
   }
 
-  private void crearExamenesSolicitados(EvolucionMedica evolucionMedica, List<EvolucionExamenesSolicitadosRequest> requests) {
+  private List<EvolucionExamenesSolicitados> crearExamenesSolicitados(EvolucionMedica evolucionMedica, List<EvolucionExamenesSolicitadosRequest> requests) {
     List<EvolucionExamenesSolicitados> examenes = requests.stream()
         .map(request -> EvolucionExamenesSolicitados.builder()
             .evolucionMedica(evolucionMedica)
@@ -208,10 +216,10 @@ public class EvolucionMedicaService {
             .estado(request.getEstado() != null ? request.getEstado() : "SOLICITADO")
             .build())
         .collect(Collectors.toList());
-    examenesSolicitadosRepository.saveAll(examenes);
+    return examenesSolicitadosRepository.saveAll(examenes);
   }
 
-  private void crearDiagnosticos(EvolucionMedica evolucionMedica, List<EvolucionDiagnosticosRequest> requests) {
+  private List<EvolucionDiagnosticos> crearDiagnosticos(EvolucionMedica evolucionMedica, List<EvolucionDiagnosticosRequest> requests) {
     List<EvolucionDiagnosticos> diagnosticos = requests.stream()
         .map(request -> EvolucionDiagnosticos.builder()
             .evolucionMedica(evolucionMedica)
@@ -221,10 +229,12 @@ public class EvolucionMedicaService {
             .observaciones(request.getObservaciones())
             .build())
         .collect(Collectors.toList());
-    diagnosticosRepository.saveAll(diagnosticos);
+    return diagnosticosRepository.saveAll(diagnosticos);
   }
 
-  private void crearPlanesTratamiento(EvolucionMedica evolucionMedica, List<EvolucionPlanesTratamientoRequest> requests) {
+  private List<EvolucionPlanesTratamiento> crearPlanesTratamiento(EvolucionMedica evolucionMedica, List<EvolucionPlanesTratamientoRequest> requests) {
+    List<EvolucionPlanesTratamiento> planesGuardados = new ArrayList<>();
+
     for (EvolucionPlanesTratamientoRequest planRequest : requests) {
       EvolucionPlanesTratamiento plan = EvolucionPlanesTratamiento.builder()
           .evolucionMedica(evolucionMedica)
@@ -233,17 +243,18 @@ public class EvolucionMedicaService {
           .tipoTratamiento(planRequest.getTipoTratamiento())
           .duracion(planRequest.getDuracion())
           .build();
-
       EvolucionPlanesTratamiento planGuardado = planesTratamientoRepository.save(plan);
 
-      // Crear indicaciones médicas si existen
       if (planRequest.getIndicacionesMedicas() != null && !planRequest.getIndicacionesMedicas().isEmpty()) {
-        crearIndicacionesMedicas(planGuardado, planRequest.getIndicacionesMedicas());
+        List<EvolucionIndicacionesMedicas> indicaciones = crearIndicacionesMedicas(planGuardado, planRequest.getIndicacionesMedicas());
+        planGuardado.setIndicacionesMedicas(indicaciones);
       }
+      planesGuardados.add(planGuardado);
     }
+    return planesGuardados;
   }
 
-  private void crearIndicacionesMedicas(EvolucionPlanesTratamiento planTratamiento, List<EvolucionIndicacionesMedicasRequest> requests) {
+  private List<EvolucionIndicacionesMedicas> crearIndicacionesMedicas(EvolucionPlanesTratamiento planTratamiento, List<EvolucionIndicacionesMedicasRequest> requests) {
     List<EvolucionIndicacionesMedicas> indicaciones = requests.stream()
         .map(request -> EvolucionIndicacionesMedicas.builder()
             .planTratamiento(planTratamiento)
@@ -255,10 +266,10 @@ public class EvolucionMedicaService {
             .indicacionesEspeciales(request.getIndicacionesEspeciales())
             .build())
         .collect(Collectors.toList());
-    indicacionesMedicasRepository.saveAll(indicaciones);
+    return indicacionesMedicasRepository.saveAll(indicaciones);
   }
 
-  private void crearEmergenciaObstetrica(EvolucionMedica evolucionMedica, EvolucionEmergenciaObstetricaRequest request) {
+  private EvolucionEmergenciaObstetrica crearEmergenciaObstetrica(EvolucionMedica evolucionMedica, EvolucionEmergenciaObstetricaRequest request) {
     EvolucionEmergenciaObstetrica emergenciaObstetrica = EvolucionEmergenciaObstetrica.builder()
         .evolucionMedica(evolucionMedica)
         .gestasPrevias(request.getGestasPrevias())
@@ -272,10 +283,10 @@ public class EvolucionMedicaService {
         .latidosFetales(request.getLatidosFetales())
         .observaciones(request.getObservaciones())
         .build();
-    emergenciaObstetricaRepository.save(emergenciaObstetrica);
+    return emergenciaObstetricaRepository.save(emergenciaObstetrica);
   }
 
-  private void crearAltaMedica(EvolucionMedica evolucionMedica, EvolucionAltaMedicaRequest request) {
+  private EvolucionAltaMedica crearAltaMedica(EvolucionMedica evolucionMedica, EvolucionAltaMedicaRequest request) {
     EvolucionAltaMedica altaMedica = EvolucionAltaMedica.builder()
         .evolucionMedica(evolucionMedica)
         .fechaAlta(request.getFechaAlta() != null ? request.getFechaAlta() : Instant.now())
@@ -285,7 +296,7 @@ public class EvolucionMedicaService {
         .controlProgramado(request.getControlProgramado())
         .especialidadControl(request.getEspecialidadControl())
         .build();
-    altaMedicaRepository.save(altaMedica);
+    return altaMedicaRepository.save(altaMedica);
   }
 
   @Transactional(readOnly = true)
