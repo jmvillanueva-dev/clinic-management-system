@@ -1,27 +1,25 @@
 package com.clinic.webapi.modules.pacientes.dto;
 
-import lombok.*;
+import com.clinic.webapi.modules.catalogos.dto.ItemCatalogoResponse;
+import lombok.Builder;
+import lombok.Data;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
 @Builder
 public class OcupacionResponse {
-  private UUID id;
-  private UUID pacienteId;
-  private UUID ocupacionId;
-  private String ocupacionNombre;
-  private String nombreEmpresa;
-  private String cargo;
-  private String telefonoEmpresa;
-  private String direccionEmpresa;
-  private LocalDate fechaInicio;
-  private LocalDate fechaFin;
-  private boolean actual;
-  private Instant fechaCreacion;
-  private Instant fechaActualizacion;
+    private UUID id;
+    private ItemCatalogoResponse ocupacion;
+    private String nombreEmpresa;
+    private String cargo;
+    private String telefonoEmpresa;
+    private String direccionEmpresa;
+    private LocalDate fechaInicio;
+    private LocalDate fechaFin;
+    private Boolean actual;
+    private Instant fechaCreacion;
+    private Instant fechaActualizacion;
 }

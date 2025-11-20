@@ -1,15 +1,16 @@
 package com.clinic.webapi.modules.pacientes.service;
 
-import com.clinic.webapi.modules.historiasclinicas.service.HistoriaClinicaService;
+import com.clinic.webapi.modules.catalogos.repository.ItemCatalogoRepository;
 import com.clinic.webapi.modules.pacientes.dto.PacienteRequest;
 import com.clinic.webapi.modules.pacientes.dto.PacienteResponse;
-import com.clinic.webapi.modules.pacientes.model.entity.Paciente;
+import com.clinic.webapi.modules.pacientes.model.entity.*;
 import com.clinic.webapi.modules.pacientes.model.mapper.PacienteMapper;
-import com.clinic.webapi.modules.pacientes.repository.PacienteRepository;
+import com.clinic.webapi.modules.pacientes.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -18,87 +19,259 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PacienteService {
 
-  private final PacienteRepository pacienteRepository;
-  private final HistoriaClinicaService historiaClinicaService;
-  private final PacienteMapper pacienteMapper;
+    private final PacienteRepository pacienteRepository;
+    private final PacienteDatosDemograficosRepository datosDemograficosRepository;
+    private final PacienteUbicacionGeograficaRepository ubicacionGeograficaRepository;
+    private final PacienteOcupacionRepository ocupacionRepository;
+    private final PacienteFuenteInformacionRepository fuenteInformacionRepository;
+    private final PacienteContactoEmergenciaRepository contactoEmergenciaRepository;
+    private final PacienteAntecedenteClinicoRepository antecedenteClinicoRepository;
+    private final ItemCatalogoRepository itemCatalogoRepository;
+    private final PacienteMapper pacienteMapper;
 
-  @Transactional
-  public PacienteResponse crearPaciente(PacienteRequest request) {
-    // Validaciones
-    if (pacienteRepository.existsByCedula(request.getCedula())) {
-      throw new RuntimeException("Ya existe un paciente con la cédula: " + request.getCedula());
+    @Transactional
+    public PacienteResponse crearPaciente(PacienteRequest request) {
+        // 1. Validaciones
+        if (pacienteRepository.existsByCedula(request.getCedula())) {
+            throw new RuntimeException("Ya existe un paciente con la cédula: " + request.getCedula());
+        }
+
+        // 2. Crear y guardar el paciente primero (sin relaciones)
+        Paciente paciente = crearPacienteBasico(request);
+        Paciente pacienteGuardado = pacienteRepository.save(paciente);
+
+        // 3. Crear y guardar las entidades relacionadas
+        crearDatosDemograficos(pacienteGuardado, request);
+        crearUbicacionGeografica(pacienteGuardado, request);
+        crearOcupacion(pacienteGuardado, request);
+        crearFuenteInformacion(pacienteGuardado, request);
+        List<PacienteContactoEmergencia> contactos = crearContactosEmergencia(pacienteGuardado, request);
+        List<PacienteAntecedenteClinico> antecedentes = crearAntecedentesClinicos(pacienteGuardado, request);
+
+        // 4. Asignar las colecciones a la entidad para la respuesta
+        pacienteGuardado.setContactosEmergencia(contactos);
+        pacienteGuardado.setAntecedentesClinicos(antecedentes);
+
+        return pacienteMapper.toResponse(pacienteGuardado);
     }
 
-    // Mapear y guardar
-    Paciente paciente = pacienteMapper.toEntity(request);
-    Paciente pacienteGuardado = pacienteRepository.save(paciente);
+    private Paciente crearPacienteBasico(PacienteRequest request) {
+        Paciente paciente = Paciente.builder()
+                .cedula(request.getCedula())
+                .primerNombre(request.getPrimerNombre())
+                .segundoNombre(request.getSegundoNombre())
+                .apellidoPaterno(request.getApellidoPaterno())
+                .apellidoMaterno(request.getApellidoMaterno())
+                .email(request.getEmail())
+                .telefono(request.getTelefono())
+                .estaActivo(true)
+                .build();
 
-    // Crear historia clínica automáticamente
-    try {
-      historiaClinicaService.crearHistoriaClinicaAutomatica(pacienteGuardado);
-      System.out.println("Historia clínica creada automáticamente para el paciente: " + pacienteGuardado.getCedula());
-    } catch (Exception e) {
-      // Log del error pero no revertir la creación del paciente
-      System.err.println("Error creando historia clínica automática: " + e.getMessage());
-      // Podrías enviar una notificación o registrar en logs de aplicación
+        // Asignar grupo sanguíneo si existe
+        if (request.getGrupoSanguineoId() != null) {
+            var grupoSanguineo = itemCatalogoRepository.findById(request.getGrupoSanguineoId())
+                    .orElseThrow(() -> new RuntimeException("Grupo sanguíneo no encontrado"));
+            paciente.setGrupoSanguineo(grupoSanguineo);
+        }
+
+        return paciente;
     }
 
-    return pacienteMapper.toResponse(pacienteGuardado);
-  }
+    private void crearDatosDemograficos(Paciente paciente, PacienteRequest request) {
+        var genero = itemCatalogoRepository.findById(request.getGeneroId())
+                .orElseThrow(() -> new RuntimeException("Género no encontrado"));
 
-  @Transactional(readOnly = true)
-  public List<PacienteResponse> obtenerTodosLosPacientes() {
-    return pacienteRepository.findAllByEstaActivo(true)
-        .stream()
-        .map(pacienteMapper::toResponse)
-        .collect(Collectors.toList());
-  }
+        PacienteDatosDemograficos datosDemograficos = PacienteDatosDemograficos.builder()
+                .paciente(paciente)
+                .fechaNacimiento(request.getFechaNacimiento())
+                .lugarNacimiento(request.getLugarNacimiento())
+                .genero(genero)
+                .nacionalidad(request.getNacionalidad())
+                .build();
 
-  @Transactional(readOnly = true)
-  public PacienteResponse obtenerPacientePorId(UUID id) {
-    Paciente paciente = pacienteRepository.findByIdWithDetails(id)
-        .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
-    return pacienteMapper.toResponse(paciente);
-  }
+        // Asignar campos opcionales
+        if (request.getGrupoCulturalId() != null) {
+            var grupoCultural = itemCatalogoRepository.findById(request.getGrupoCulturalId())
+                    .orElseThrow(() -> new RuntimeException("Grupo cultural no encontrado"));
+            datosDemograficos.setGrupoCultural(grupoCultural);
+        }
 
-  @Transactional(readOnly = true)
-  public PacienteResponse obtenerPacientePorCedula(String cedula) {
-    Paciente paciente = pacienteRepository.findByCedula(cedula)
-        .orElseThrow(() -> new RuntimeException("Paciente no encontrado con cédula: " + cedula));
-    return pacienteMapper.toResponse(paciente);
-  }
+        if (request.getEstadoCivilId() != null) {
+            var estadoCivil = itemCatalogoRepository.findById(request.getEstadoCivilId())
+                    .orElseThrow(() -> new RuntimeException("Estado civil no encontrado"));
+            datosDemograficos.setEstadoCivil(estadoCivil);
+        }
 
-  @Transactional
-  public PacienteResponse actualizarPaciente(UUID id, PacienteRequest request) {
-    Paciente pacienteExistente = pacienteRepository.findById(id)
-        .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
+        if (request.getNivelInstruccionId() != null) {
+            var nivelInstruccion = itemCatalogoRepository.findById(request.getNivelInstruccionId())
+                    .orElseThrow(() -> new RuntimeException("Nivel de instrucción no encontrado"));
+            datosDemograficos.setNivelInstruccion(nivelInstruccion);
+        }
 
-    // Validar cédula si cambió
-    if (!request.getCedula().equals(pacienteExistente.getCedula()) &&
-        pacienteRepository.existsByCedula(request.getCedula())) {
-      throw new RuntimeException("Ya existe un paciente con la cédula: " + request.getCedula());
+        datosDemograficosRepository.save(datosDemograficos);
     }
 
-    Paciente pacienteActualizado = pacienteMapper.updateEntityFromRequest(pacienteExistente, request);
-    Paciente pacienteGuardado = pacienteRepository.save(pacienteActualizado);
+    private void crearUbicacionGeografica(Paciente paciente, PacienteRequest request) {
+        PacienteUbicacionGeografica ubicacion = PacienteUbicacionGeografica.builder()
+                .paciente(paciente)
+                .direccion(request.getDireccion())
+                .canton(request.getCanton())
+                .parroquia(request.getParroquia())
+                .build();
 
-    return pacienteMapper.toResponse(pacienteGuardado);
-  }
+        if (request.getProvinciaId() != null) {
+            var provincia = itemCatalogoRepository.findById(request.getProvinciaId())
+                    .orElseThrow(() -> new RuntimeException("Provincia no encontrada"));
+            ubicacion.setProvincia(provincia);
+        }
 
-  @Transactional
-  public void eliminarPaciente(UUID id) {
-    Paciente paciente = pacienteRepository.findById(id)
-        .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
+        ubicacionGeograficaRepository.save(ubicacion);
+    }
 
-    paciente.setEstaActivo(false);
-    pacienteRepository.save(paciente);
-  }
+    private void crearOcupacion(Paciente paciente, PacienteRequest request) {
+        if (request.getOcupacionId() != null) {
+            var ocupacionCatalogo = itemCatalogoRepository.findById(request.getOcupacionId())
+                    .orElseThrow(() -> new RuntimeException("Ocupación no encontrada"));
 
-  @Transactional(readOnly = true)
-  public List<PacienteResponse> buscarPacientes(String searchTerm) {
-    return pacienteRepository.searchActivePacientes(searchTerm)
-        .stream()
-        .map(pacienteMapper::toResponse)
-        .collect(Collectors.toList());
-  }
+            PacienteOcupacion ocupacion = PacienteOcupacion.builder()
+                    .paciente(paciente)
+                    .ocupacion(ocupacionCatalogo)
+                    .nombreEmpresa(request.getNombreEmpresa())
+                    .cargo(request.getCargo())
+                    .telefonoEmpresa(request.getTelefonoEmpresa())
+                    .direccionEmpresa(request.getDireccionEmpresa())
+                    .fechaInicio(request.getFechaInicio())
+                    .fechaFin(request.getFechaFin())
+                    .actual(request.getActual() != null ? request.getActual() : true)
+                    .build();
+
+            ocupacionRepository.save(ocupacion);
+        }
+    }
+
+    private void crearFuenteInformacion(Paciente paciente, PacienteRequest request) {
+        if (request.getFuenteInformacionId() != null) {
+            var fuenteInfoCatalogo = itemCatalogoRepository.findById(request.getFuenteInformacionId())
+                    .orElseThrow(() -> new RuntimeException("Fuente de información no encontrada"));
+
+            PacienteFuenteInformacion fuenteInformacion = PacienteFuenteInformacion.builder()
+                    .paciente(paciente)
+                    .fuenteInformacion(fuenteInfoCatalogo)
+                    .nombreFuenteInfo(request.getNombreFuenteInfo())
+                    .telefono(request.getTelefonoFuenteInfo())
+                    .observaciones(request.getObservacionesFuente())
+                    .build();
+
+            fuenteInformacionRepository.save(fuenteInformacion);
+        }
+    }
+
+    private List<PacienteContactoEmergencia> crearContactosEmergencia(Paciente paciente, PacienteRequest request) {
+        if (request.getContactosEmergencia() != null && !request.getContactosEmergencia().isEmpty()) {
+            List<PacienteContactoEmergencia> contactos = new ArrayList<>();
+
+            for (var contactoRequest : request.getContactosEmergencia()) {
+                var parentesco = itemCatalogoRepository.findById(contactoRequest.getParentescoId())
+                        .orElseThrow(() -> new RuntimeException("Parentesco no encontrado"));
+
+                PacienteContactoEmergencia contacto = PacienteContactoEmergencia.builder()
+                        .paciente(paciente)
+                        .nombre(contactoRequest.getNombre())
+                        .parentesco(parentesco)
+                        .telefono(contactoRequest.getTelefono())
+                        .direccion(contactoRequest.getDireccion())
+                        .build();
+
+                contactos.add(contacto);
+            }
+
+            return contactoEmergenciaRepository.saveAll(contactos);
+        }
+        return new ArrayList<>();
+    }
+
+    private List<PacienteAntecedenteClinico> crearAntecedentesClinicos(Paciente paciente, PacienteRequest request) {
+        if (request.getAntecedentesClinicos() != null && !request.getAntecedentesClinicos().isEmpty()) {
+            List<PacienteAntecedenteClinico> antecedentes = new ArrayList<>();
+
+            for (var antecedenteRequest : request.getAntecedentesClinicos()) {
+                var tipoAntecedente = itemCatalogoRepository.findById(antecedenteRequest.getTipoAntecedenteId())
+                        .orElseThrow(() -> new RuntimeException("Tipo de antecedente no encontrado"));
+
+                var patologia = itemCatalogoRepository.findById(antecedenteRequest.getPatologiaId())
+                        .orElseThrow(() -> new RuntimeException("Patología no encontrada"));
+
+                PacienteAntecedenteClinico antecedente = PacienteAntecedenteClinico.builder()
+                        .paciente(paciente)
+                        .tipoAntecedente(tipoAntecedente)
+                        .patologia(patologia)
+                        .descripcion(antecedenteRequest.getDescripcion())
+                        .fechaDiagnostico(antecedenteRequest.getFechaDiagnostico())
+                        .tratamiento(antecedenteRequest.getTratamiento())
+                        .estaActivo(antecedenteRequest.getEstaActivo() != null ? antecedenteRequest.getEstaActivo() : true)
+                        .build();
+
+                antecedentes.add(antecedente);
+            }
+
+            return antecedenteClinicoRepository.saveAll(antecedentes);
+        }
+        return new ArrayList<>();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PacienteResponse> obtenerTodosLosPacientes() {
+        return pacienteRepository.findAllByEstaActivo(true)
+                .stream()
+                .map(pacienteMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PacienteResponse obtenerPacientePorId(UUID id) {
+        Paciente paciente = pacienteRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
+        return pacienteMapper.toResponse(paciente);
+    }
+
+    @Transactional(readOnly = true)
+    public PacienteResponse obtenerPacientePorCedula(String cedula) {
+        Paciente paciente = pacienteRepository.findByCedula(cedula)
+                .orElseThrow(() -> new RuntimeException("Paciente no encontrado con cédula: " + cedula));
+        return pacienteMapper.toResponse(paciente);
+    }
+
+    @Transactional
+    public PacienteResponse actualizarPaciente(UUID id, PacienteRequest request) {
+        Paciente pacienteExistente = pacienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
+
+        // Validar cédula si cambió
+        if (!request.getCedula().equals(pacienteExistente.getCedula()) &&
+                pacienteRepository.existsByCedula(request.getCedula())) {
+            throw new RuntimeException("Ya existe un paciente con la cédula: " + request.getCedula());
+        }
+
+        Paciente pacienteActualizado = pacienteMapper.updateEntityFromRequest(pacienteExistente, request);
+        Paciente pacienteGuardado = pacienteRepository.save(pacienteActualizado);
+
+        return pacienteMapper.toResponse(pacienteGuardado);
+    }
+
+    @Transactional
+    public void eliminarPaciente(UUID id) {
+        Paciente paciente = pacienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
+
+        paciente.setEstaActivo(false);
+        pacienteRepository.save(paciente);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PacienteResponse> buscarPacientes(String searchTerm) {
+        return pacienteRepository.searchActivePacientes(searchTerm)
+                .stream()
+                .map(pacienteMapper::toResponse)
+                .collect(Collectors.toList());
+    }
 }

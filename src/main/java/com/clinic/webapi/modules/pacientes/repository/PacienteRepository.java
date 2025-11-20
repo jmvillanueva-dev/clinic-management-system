@@ -19,9 +19,25 @@ public interface PacienteRepository extends JpaRepository<Paciente, UUID> {
 
   List<Paciente> findAllByEstaActivo(boolean estaActivo);
 
-  @Query("SELECT p FROM Paciente p LEFT JOIN FETCH p.datosDemograficos " +
-      "LEFT JOIN FETCH p.ubicacionGeografica LEFT JOIN FETCH p.ocupacion " +
-      "LEFT JOIN FETCH p.fuenteInformacion WHERE p.id = :id")
+  @Query("SELECT p FROM Paciente p " +
+      "LEFT JOIN FETCH p.grupoSanguineo " +
+      "LEFT JOIN FETCH p.datosDemograficos dd " +
+      "LEFT JOIN FETCH dd.genero " +
+      "LEFT JOIN FETCH dd.grupoCultural " +
+      "LEFT JOIN FETCH dd.estadoCivil " +
+      "LEFT JOIN FETCH dd.nivelInstruccion " +
+      "LEFT JOIN FETCH p.ubicacionGeografica ug " +
+      "LEFT JOIN FETCH ug.provincia " +
+      "LEFT JOIN FETCH p.ocupacion o " +
+      "LEFT JOIN FETCH o.ocupacion " +
+      "LEFT JOIN FETCH p.fuenteInformacion fi " +
+      "LEFT JOIN FETCH fi.fuenteInformacion " +
+      "LEFT JOIN FETCH p.contactosEmergencia ce " +
+      "LEFT JOIN FETCH ce.parentesco " +
+      "LEFT JOIN FETCH p.antecedentesClinicos ac " +
+      "LEFT JOIN FETCH ac.tipoAntecedente " +
+      "LEFT JOIN FETCH ac.patologia " +
+      "WHERE p.id = :id")
   Optional<Paciente> findByIdWithDetails(@Param("id") UUID id);
 
   @Query("SELECT p FROM Paciente p WHERE p.estaActivo = true " +
