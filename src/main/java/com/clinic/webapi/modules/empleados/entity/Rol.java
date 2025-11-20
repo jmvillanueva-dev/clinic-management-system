@@ -1,5 +1,6 @@
 package com.clinic.webapi.modules.empleados.entity;
 
+import com.clinic.webapi.shared.model.AuditableEntity;
 import com.clinic.webapi.shared.util.EntityAuditListener;
 import lombok.*;
 import jakarta.persistence.*;
@@ -12,7 +13,7 @@ import java.util.UUID;
 @Table(name = "roles")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @EntityListeners(EntityAuditListener.class)
-public class Rol {
+public class Rol implements AuditableEntity {
 
   @Id
   @UuidGenerator

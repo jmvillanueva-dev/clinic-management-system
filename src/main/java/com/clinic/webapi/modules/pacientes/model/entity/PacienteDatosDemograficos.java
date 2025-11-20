@@ -1,11 +1,13 @@
 package com.clinic.webapi.modules.pacientes.model.entity;
 
 import com.clinic.webapi.modules.catalogos.model.entity.ItemCatalogo;
+import com.clinic.webapi.shared.model.AuditableEntity;
 import com.clinic.webapi.shared.util.EntityAuditListener;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -13,7 +15,7 @@ import java.util.UUID;
 @Table(name = "pacientes_datos_demograficos")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @EntityListeners(EntityAuditListener.class)
-public class PacienteDatosDemograficos {
+public class PacienteDatosDemograficos implements AuditableEntity {
 
   @Id
   @UuidGenerator
@@ -55,4 +57,10 @@ public class PacienteDatosDemograficos {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "ocupacion_id")
   private ItemCatalogo ocupacion;
+
+  @Column(name = "fecha_creacion", updatable = false)
+  private Instant fechaCreacion;
+
+  @Column(name = "fecha_actualizacion")
+  private Instant fechaActualizacion;
 }

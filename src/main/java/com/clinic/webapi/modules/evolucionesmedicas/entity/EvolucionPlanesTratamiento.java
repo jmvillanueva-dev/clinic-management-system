@@ -1,5 +1,6 @@
 package com.clinic.webapi.modules.evolucionesmedicas.entity;
 
+import com.clinic.webapi.shared.model.AuditableEntity;
 import com.clinic.webapi.shared.util.EntityAuditListener;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,7 +15,7 @@ import java.util.UUID;
 @Table(name = "evolucion_planes_tratamiento")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @EntityListeners(EntityAuditListener.class)
-public class EvolucionPlanesTratamiento {
+public class EvolucionPlanesTratamiento implements AuditableEntity {
 
   @Id
   @UuidGenerator
@@ -38,6 +39,9 @@ public class EvolucionPlanesTratamiento {
 
   @Column(name = "fecha_creacion", updatable = false)
   private Instant fechaCreacion;
+
+  @Column(name = "fecha_actualizacion")
+  private Instant fechaActualizacion;
 
   @OneToMany(mappedBy = "planTratamiento", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   @Builder.Default

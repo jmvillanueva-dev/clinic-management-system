@@ -1,6 +1,7 @@
 package com.clinic.webapi.modules.pacientes.model.entity;
 
 import com.clinic.webapi.modules.catalogos.model.entity.ItemCatalogo;
+import com.clinic.webapi.shared.model.AuditableEntity;
 import com.clinic.webapi.shared.util.EntityAuditListener;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,7 +15,7 @@ import java.util.UUID;
 @Table(name = "pacientes_ocupacion")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @EntityListeners(EntityAuditListener.class)
-public class PacienteOcupacion {
+public class PacienteOcupacion implements AuditableEntity {
 
   @Id
   @UuidGenerator
