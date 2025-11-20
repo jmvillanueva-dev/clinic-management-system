@@ -36,22 +36,30 @@ public class PacienteService {
             throw new RuntimeException("Ya existe un paciente con la cédula: " + request.getCedula());
         }
 
-        // 2. Crear y guardar el paciente primero (sin relaciones)
+        // 2. Crear y guardar el paciente primero
         Paciente paciente = crearPacienteBasico(request);
         Paciente pacienteGuardado = pacienteRepository.save(paciente);
 
-        // 3. Crear y guardar las entidades relacionadas
-        crearDatosDemograficos(pacienteGuardado, request);
-        crearUbicacionGeografica(pacienteGuardado, request);
-        crearOcupacion(pacienteGuardado, request);
-        crearFuenteInformacion(pacienteGuardado, request);
-        List<PacienteContactoEmergencia> contactos = crearContactosEmergencia(pacienteGuardado, request);
-        List<PacienteAntecedenteClinico> antecedentes = crearAntecedentesClinicos(pacienteGuardado, request);
+        // 3. Crear y guardar las entidades relacionadas Y ASIGNARLAS EN MEMORIA
+        var datosDemograficos = crearDatosDemograficos(pacienteGuardado, request);
+        pacienteGuardado.setDatosDemograficos(datosDemograficos);
 
-        // 4. Asignar las colecciones a la entidad para la respuesta
+        var ubicacion = crearUbicacionGeografica(pacienteGuardado, request);
+        pacienteGuardado.setUbicacionGeografica(ubicacion);
+
+        var ocupacion = crearOcupacion(pacienteGuardado, request);
+        pacienteGuardado.setOcupacion(ocupacion);
+
+        var fuenteInfo = crearFuenteInformacion(pacienteGuardado, request);
+        pacienteGuardado.setFuenteInformacion(fuenteInfo);
+
+        List<PacienteContactoEmergencia> contactos = crearContactosEmergencia(pacienteGuardado, request);
         pacienteGuardado.setContactosEmergencia(contactos);
+
+        List<PacienteAntecedenteClinico> antecedentes = crearAntecedentesClinicos(pacienteGuardado, request);
         pacienteGuardado.setAntecedentesClinicos(antecedentes);
 
+        // 4. Devolver respuesta
         return pacienteMapper.toResponse(pacienteGuardado);
     }
 
@@ -77,7 +85,7 @@ public class PacienteService {
         return paciente;
     }
 
-    private void crearDatosDemograficos(Paciente paciente, PacienteRequest request) {
+    private PacienteDatosDemograficos crearDatosDemograficos(Paciente paciente, PacienteRequest request) {
         var genero = itemCatalogoRepository.findById(request.getGeneroId())
                 .orElseThrow(() -> new RuntimeException("Género no encontrado"));
 
@@ -108,10 +116,10 @@ public class PacienteService {
             datosDemograficos.setNivelInstruccion(nivelInstruccion);
         }
 
-        datosDemograficosRepository.save(datosDemograficos);
+        return datosDemograficosRepository.save(datosDemograficos);
     }
 
-    private void crearUbicacionGeografica(Paciente paciente, PacienteRequest request) {
+    private PacienteUbicacionGeografica crearUbicacionGeografica(Paciente paciente, PacienteRequest request) {
         PacienteUbicacionGeografica ubicacion = PacienteUbicacionGeografica.builder()
                 .paciente(paciente)
                 .direccion(request.getDireccion())
@@ -125,10 +133,10 @@ public class PacienteService {
             ubicacion.setProvincia(provincia);
         }
 
-        ubicacionGeograficaRepository.save(ubicacion);
+        return ubicacionGeograficaRepository.save(ubicacion);
     }
 
-    private void crearOcupacion(Paciente paciente, PacienteRequest request) {
+    private PacienteOcupacion crearOcupacion(Paciente paciente, PacienteRequest request) {
         if (request.getOcupacionId() != null) {
             var ocupacionCatalogo = itemCatalogoRepository.findById(request.getOcupacionId())
                     .orElseThrow(() -> new RuntimeException("Ocupación no encontrada"));
@@ -145,11 +153,12 @@ public class PacienteService {
                     .actual(request.getActual() != null ? request.getActual() : true)
                     .build();
 
-            ocupacionRepository.save(ocupacion);
+            return ocupacionRepository.save(ocupacion);
         }
+        return null;
     }
 
-    private void crearFuenteInformacion(Paciente paciente, PacienteRequest request) {
+    private PacienteFuenteInformacion crearFuenteInformacion(Paciente paciente, PacienteRequest request) {
         if (request.getFuenteInformacionId() != null) {
             var fuenteInfoCatalogo = itemCatalogoRepository.findById(request.getFuenteInformacionId())
                     .orElseThrow(() -> new RuntimeException("Fuente de información no encontrada"));
@@ -162,8 +171,9 @@ public class PacienteService {
                     .observaciones(request.getObservacionesFuente())
                     .build();
 
-            fuenteInformacionRepository.save(fuenteInformacion);
+            return fuenteInformacionRepository.save(fuenteInformacion);
         }
+        return null;
     }
 
     private List<PacienteContactoEmergencia> crearContactosEmergencia(Paciente paciente, PacienteRequest request) {
