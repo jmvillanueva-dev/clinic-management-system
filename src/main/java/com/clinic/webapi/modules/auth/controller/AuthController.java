@@ -1,10 +1,14 @@
 package com.clinic.webapi.modules.auth.controller;
 
+import com.clinic.webapi.modules.auth.entity.RefreshToken;
+import com.clinic.webapi.modules.auth.service.RefreshTokenService;
 import com.clinic.webapi.shared.dto.ApiResponse;
 import com.clinic.webapi.modules.auth.dto.AuthRequest;
 import com.clinic.webapi.modules.auth.dto.AuthResponse;
 import com.clinic.webapi.modules.auth.dto.RegisterRequest;
 import com.clinic.webapi.modules.auth.dto.RegisterResponse;
+import com.clinic.webapi.modules.auth.dto.TokenRefreshRequest;
+import com.clinic.webapi.modules.auth.dto.TokenRefreshResponse;
 import com.clinic.webapi.modules.empleados.entity.Empleado;
 import com.clinic.webapi.modules.empleados.entity.Rol;
 import com.clinic.webapi.modules.auth.entity.Usuario;
@@ -35,7 +39,7 @@ public class AuthController {
   private final UserService userService;
   private final JwtService jwtService;
   private final AuthenticationManager authenticationManager;
-
+  private final RefreshTokenService refreshTokenService;
   /**
    * Endpoint para registrar nuevos empleados/usuarios.
    * Solo accesible por usuarios con el rol 'ADMINISTRADOR'.
@@ -86,11 +90,20 @@ public class AuthController {
           .map(Rol::getNombre)
           .collect(Collectors.toSet());
 
-      String token = jwtService.generateToken(usuario.getId(), usuario.getEmail(), roles);
+      String accessToken = jwtService.generateToken(usuario.getId(), usuario.getEmail(), roles);
+      RefreshToken refreshToken = refreshTokenService.createRefreshToken(usuario.getId());
       Empleado empleado = usuario.getEmpleado();
 
-      AuthResponse response = new AuthResponse(token, "Bearer", usuario.getEmail(), roles,
-          empleado.getId(), empleado.getNombre(), empleado.getApellido());
+      AuthResponse response = new AuthResponse(
+        accessToken, 
+        refreshToken.getToken(),
+        "Bearer", 
+        usuario.getEmail(), 
+        roles,
+        empleado.getId(), 
+        empleado.getNombre(), 
+        empleado.getApellido()
+    );
 
       return ResponseEntity.ok(ApiResponse.success("Inicio de sesión exitoso", response));
 
@@ -110,5 +123,25 @@ public class AuthController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.error("Error en el proceso de login: " + e.getMessage()));
     }
+  }
+
+  @PostMapping("/refresh-token")
+  public ResponseEntity<ApiResponse<TokenRefreshResponse>> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
+      String requestRefreshToken = request.getRefreshToken();
+
+      return refreshTokenService.findByToken(requestRefreshToken)
+          .map(refreshTokenService::verifyExpiration)
+          .map(RefreshToken::getUsuario)
+          .map(usuario -> {
+              Set<String> roles = usuario.getRoles().stream().map(Rol::getNombre).collect(Collectors.toSet());
+              String accessToken = jwtService.generateToken(usuario.getId(), usuario.getEmail(), roles);
+              
+              return ResponseEntity.ok(ApiResponse.success("Token refrescado exitosamente", 
+                  TokenRefreshResponse.builder()
+                      .accessToken(accessToken)
+                      .refreshToken(requestRefreshToken)
+                      .build()));
+          })
+          .orElseThrow(() -> new RuntimeException("El refresh token no existe en la base de datos!"));
   }
 }
