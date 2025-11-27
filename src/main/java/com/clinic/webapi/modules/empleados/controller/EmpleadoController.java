@@ -144,14 +144,16 @@ public class EmpleadoController {
   // "Eliminar" (Desactivar) Empleado (Solo ADMIN)
   @DeleteMapping("/{id}")
   @PreAuthorize("hasRole('ADMINISTRADOR')")
-  public ResponseEntity<ApiResponse<Void>> eliminarEmpleado(@PathVariable UUID id, @AuthenticationPrincipal String userEmail) {
+  public ResponseEntity<ApiResponse<Void>> eliminarEmpleado(@PathVariable UUID id, @AuthenticationPrincipal String userIdString) {
     try {
-      UUID userId = userService.findByEmail(userEmail)
-          .orElseThrow(() -> new RuntimeException("Usuario autenticado no encontrado."))
-          .getId();
-
+      UUID userId = UUID.fromString(userIdString);
       userService.eliminarEmpleado(id, userId);
+
       return ResponseEntity.ok(ApiResponse.success("Empleado desactivado exitosamente"));
+
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ApiResponse.error("Token de autenticación inválido"));
     } catch (SecurityException e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN)
           .body(ApiResponse.error(e.getMessage()));

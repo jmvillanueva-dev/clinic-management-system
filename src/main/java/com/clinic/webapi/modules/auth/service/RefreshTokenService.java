@@ -1,6 +1,7 @@
 package com.clinic.webapi.modules.auth.service;
 
 import com.clinic.webapi.modules.auth.entity.RefreshToken;
+import com.clinic.webapi.modules.auth.entity.Usuario;
 import com.clinic.webapi.modules.auth.repository.RefreshTokenRepository;
 import com.clinic.webapi.modules.auth.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,16 +29,28 @@ public class RefreshTokenService {
 
   @Transactional
   public RefreshToken createRefreshToken(UUID userId) {
-    // Primero eliminamos tokens antiguos del usuario para no llenar la DB
-    // Opcional: si quieres permitir múltiples sesiones, no borres los anteriores
-    var usuario = usuarioRepository.findById(userId).get();
-    refreshTokenRepository.deleteByUsuario(usuario);
+    Usuario usuario = usuarioRepository.findById(userId)
+        .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-    RefreshToken refreshToken = RefreshToken.builder()
-        .usuario(usuario)
-        .expiryDate(Instant.now().plusMillis(refreshTokenDurationMs))
-        .token(UUID.randomUUID().toString())
-        .build();
+    // Buscamos si ya existe un token para este usuario
+    Optional<RefreshToken> existingToken = refreshTokenRepository.findByUsuario(usuario);
+
+    RefreshToken refreshToken;
+
+    if (existingToken.isPresent()) {
+        // (UPSERT) Actualizamos sus valores. Esto evita el error de llave duplicada.
+        refreshToken = existingToken.get();
+        refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
+        // Al ser una entidad gestionada y estar en @Transactional, el save actualiza
+    } else {
+        // Crear un nuevo token
+        refreshToken = RefreshToken.builder()
+            .usuario(usuario)
+            .expiryDate(Instant.now().plusMillis(refreshTokenDurationMs))
+            .token(UUID.randomUUID().toString())
+            .build();
+    }
 
     return refreshTokenRepository.save(refreshToken);
   }
