@@ -3,6 +3,7 @@ package com.clinic.webapi.modules.catalogos.controller;
 import com.clinic.webapi.shared.dto.ApiResponse;
 import com.clinic.webapi.modules.catalogos.dto.CatalogoRequest;
 import com.clinic.webapi.modules.catalogos.dto.CatalogoResponse;
+import com.clinic.webapi.modules.catalogos.dto.ItemCatalogoMinifiedResponse;
 import com.clinic.webapi.modules.catalogos.service.CatalogoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -84,6 +86,18 @@ public class CatalogoController {
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(ApiResponse.error(e.getMessage()));
+    }
+  }
+
+  @GetMapping("/agrupados")
+  @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'MEDICO', 'ENFERMERO')")
+  public ResponseEntity<ApiResponse<Map<String, List<ItemCatalogoMinifiedResponse>>>> obtenerCatalogosAgrupados() {
+    try {
+      Map<String, List<ItemCatalogoMinifiedResponse>> catalogos = catalogoService.obtenerTodosLosCatalogosAgrupados();
+      return ResponseEntity.ok(ApiResponse.success("Catálogos agrupados obtenidos exitosamente", catalogos));
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest()
+          .body(ApiResponse.error("Error al obtener catálogos agrupados: " + e.getMessage()));
     }
   }
 }

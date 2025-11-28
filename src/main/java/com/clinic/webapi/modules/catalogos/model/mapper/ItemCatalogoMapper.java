@@ -1,5 +1,6 @@
 package com.clinic.webapi.modules.catalogos.model.mapper;
 
+import com.clinic.webapi.modules.catalogos.dto.ItemCatalogoMinifiedResponse; // Importar nuevo DTO
 import com.clinic.webapi.modules.catalogos.dto.ItemCatalogoRequest;
 import com.clinic.webapi.modules.catalogos.dto.ItemCatalogoResponse;
 import com.clinic.webapi.modules.catalogos.model.entity.Catalogo;
@@ -35,4 +36,9 @@ public interface ItemCatalogoMapper {
   @Mapping(target = "fechaActualizacion", ignore = true)
   @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
   ItemCatalogo updateEntityFromRequest(@MappingTarget ItemCatalogo itemCatalogo, ItemCatalogoRequest request, Catalogo catalogo);
+
+  // --- NUEVO MÉTODO ---
+  @Mapping(target = "catalogoId", source = "catalogo.id")
+  @Mapping(target = "catalogoNombre", source = "catalogo.nombre")
+  ItemCatalogoMinifiedResponse toMinifiedResponse(ItemCatalogo itemCatalogo);
 }

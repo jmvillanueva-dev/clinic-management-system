@@ -23,4 +23,9 @@ public interface CatalogoRepository extends JpaRepository<Catalogo, UUID> {
 
   @Query("SELECT c FROM Catalogo c LEFT JOIN FETCH c.items WHERE c.id = :id")
   Optional<Catalogo> findByIdWithItems(@Param("id") UUID id);
+
+  // --- NUEVO MÉTODO ---
+  // Traemos todos los catálogos activos y hacemos un JOIN FETCH para traer sus items de una vez.
+  @Query("SELECT DISTINCT c FROM Catalogo c LEFT JOIN FETCH c.items i WHERE c.estaActivo = true AND (i IS NULL OR i.estaActivo = true)")
+  List<Catalogo> findAllActiveWithItems();
 }
