@@ -2,19 +2,53 @@ package com.clinic.webapi.modules.pacientes.model.mapper;
 
 import com.clinic.webapi.modules.catalogos.dto.ItemCatalogoResponse;
 import com.clinic.webapi.modules.catalogos.model.entity.ItemCatalogo;
+import com.clinic.webapi.modules.catalogos.repository.ItemCatalogoRepository;
 import com.clinic.webapi.modules.pacientes.dto.*;
 import com.clinic.webapi.modules.pacientes.model.entity.*;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
+import org.mapstruct.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
-public interface PacienteMapper {
+public abstract class PacienteMapper {
 
-    // Solo para mapeo básico, no incluye relaciones
+    @Autowired
+    protected ItemCatalogoRepository itemCatalogoRepository;
+
+    public ItemCatalogo map(UUID id) {
+        if (id == null) return null;
+        return itemCatalogoRepository.findById(id).orElse(null);
+    }
+
+    // --- MAPPINGS DE REQUEST A ENTIDAD (Para Update/Create) ---
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "fechaCreacion", ignore = true)
+    @Mapping(target = "fechaActualizacion", ignore = true)
+    @Mapping(target = "paciente", ignore = true)
+    @Mapping(target = "parentesco", source = "parentescoId")
+    public abstract PacienteContactoEmergencia mapContactoRequest(ContactoEmergenciaRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "fechaCreacion", ignore = true)
+    @Mapping(target = "fechaActualizacion", ignore = true)
+    @Mapping(target = "paciente", ignore = true)
+    @Mapping(target = "tipoAntecedente", source = "tipoAntecedenteId")
+    @Mapping(target = "patologia", source = "patologiaId")
+    public abstract PacienteAntecedenteClinico mapAntecedenteRequest(AntecedenteClinicoRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "fechaCreacion", ignore = true)
+    @Mapping(target = "contactosEmergencia", source = "contactosEmergencia")
+    @Mapping(target = "antecedentesClinicos", source = "antecedentesClinicos")
+    public abstract Paciente updateEntityFromRequest(@MappingTarget Paciente paciente, PacienteRequest request);
+
+
+    // --- MAPPINGS EXISTENTES ---
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "fechaCreacion", ignore = true)
     @Mapping(target = "fechaActualizacion", ignore = true)
@@ -25,7 +59,7 @@ public interface PacienteMapper {
     @Mapping(target = "fuenteInformacion", ignore = true)
     @Mapping(target = "contactosEmergencia", ignore = true)
     @Mapping(target = "antecedentesClinicos", ignore = true)
-    Paciente toEntity(PacienteRequest request);
+    public abstract Paciente toEntity(PacienteRequest request);
 
     @Mapping(target = "fechaNacimiento", source = "datosDemograficos.fechaNacimiento")
     @Mapping(target = "lugarNacimiento", source = "datosDemograficos.lugarNacimiento")
@@ -42,14 +76,33 @@ public interface PacienteMapper {
     @Mapping(target = "fuenteInformacion", source = "fuenteInformacion")
     @Mapping(target = "contactosEmergencia", source = "contactosEmergencia")
     @Mapping(target = "antecedentesClinicos", source = "antecedentesClinicos")
-    PacienteResponse toResponse(Paciente paciente);
+    public abstract PacienteResponse toResponse(Paciente paciente);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "fechaCreacion", ignore = true)
-    Paciente updateEntityFromRequest(@MappingTarget Paciente paciente, PacienteRequest request);
+    @AfterMapping
+    public void setBidirectionalReferences(@MappingTarget Paciente paciente) {
+        if (paciente.getContactosEmergencia() != null) {
+            paciente.getContactosEmergencia().forEach(contacto -> contacto.setPaciente(paciente));
+        }
+        if (paciente.getAntecedentesClinicos() != null) {
+            paciente.getAntecedentesClinicos().forEach(antecedente -> antecedente.setPaciente(paciente));
+        }
+        if (paciente.getOcupacion() != null) {
+            paciente.getOcupacion().setPaciente(paciente);
+        }
+        if (paciente.getDatosDemograficos() != null) {
+            paciente.getDatosDemograficos().setPaciente(paciente);
+        }
+        if (paciente.getUbicacionGeografica() != null) {
+            paciente.getUbicacionGeografica().setPaciente(paciente);
+        }
+        if (paciente.getFuenteInformacion() != null) {
+            paciente.getFuenteInformacion().setPaciente(paciente);
+        }
+    }
 
-    // Mappers para entidades relacionadas
-    default OcupacionResponse mapOcupacion(PacienteOcupacion ocupacion) {
+    // --- MÉTODOS DE APOYO ---
+
+    public OcupacionResponse mapOcupacion(PacienteOcupacion ocupacion) {
         if (ocupacion == null) {
             return null;
         }
@@ -68,7 +121,7 @@ public interface PacienteMapper {
                 .build();
     }
 
-    default FuenteInformacionResponse mapFuenteInformacion(PacienteFuenteInformacion fuenteInformacion) {
+    public FuenteInformacionResponse mapFuenteInformacion(PacienteFuenteInformacion fuenteInformacion) {
         if (fuenteInformacion == null) {
             return null;
         }
@@ -83,7 +136,7 @@ public interface PacienteMapper {
                 .build();
     }
 
-    default List<ContactoEmergenciaResponse> mapContactosEmergencia(List<PacienteContactoEmergencia> contactos) {
+    public List<ContactoEmergenciaResponse> mapContactosEmergencia(List<PacienteContactoEmergencia> contactos) {
         if (contactos == null) {
             return null;
         }
@@ -92,7 +145,7 @@ public interface PacienteMapper {
                 .collect(Collectors.toList());
     }
 
-    default ContactoEmergenciaResponse mapContactoEmergencia(PacienteContactoEmergencia contacto) {
+    public ContactoEmergenciaResponse mapContactoEmergencia(PacienteContactoEmergencia contacto) {
         if (contacto == null) {
             return null;
         }
@@ -107,7 +160,7 @@ public interface PacienteMapper {
                 .build();
     }
 
-    default List<AntecedenteClinicoResponse> mapAntecedentesClinicos(List<PacienteAntecedenteClinico> antecedentes) {
+    public List<AntecedenteClinicoResponse> mapAntecedentesClinicos(List<PacienteAntecedenteClinico> antecedentes) {
         if (antecedentes == null) {
             return null;
         }
@@ -116,7 +169,7 @@ public interface PacienteMapper {
                 .collect(Collectors.toList());
     }
 
-    default AntecedenteClinicoResponse mapAntecedenteClinico(PacienteAntecedenteClinico antecedente) {
+    public AntecedenteClinicoResponse mapAntecedenteClinico(PacienteAntecedenteClinico antecedente) {
         if (antecedente == null) {
             return null;
         }
@@ -135,7 +188,7 @@ public interface PacienteMapper {
                 .build();
     }
 
-    default ItemCatalogoResponse mapItemCatalogo(ItemCatalogo item) {
+    public ItemCatalogoResponse mapItemCatalogo(ItemCatalogo item) {
         if (item == null) {
             return null;
         }
