@@ -522,9 +522,19 @@ public class EvolucionMedicaService {
   }
 
   private EvolucionMedicaResumenResponse construirResumenResponse(EvolucionMedica evolucionMedica) {
+    // Verificar la existencia de cada sección para determinar la completitud
+    boolean tieneMotivoAtencion = motivoAtencionRepository.existsByEvolucionMedicaId(evolucionMedica.getId());
     boolean tieneSignosVitales = signosVitalesRepository.existsByEvolucionMedicaId(evolucionMedica.getId());
-    boolean tieneDiagnosticos = diagnosticosRepository.findByEvolucionMedicaId(evolucionMedica.getId()).size() > 0;
-    boolean tieneTratamientos = planesTratamientoRepository.findByEvolucionMedicaId(evolucionMedica.getId()).size() > 0;
+    boolean tieneAntecedentesIncidente = antecedentesIncidenteRepository.existsByEvolucionMedicaId(evolucionMedica.getId());
+    boolean tieneValoracionClinica = valoracionClinicaRepository.existsByEvolucionMedicaId(evolucionMedica.getId());
+    boolean tieneEmergenciaObstetrica = emergenciaObstetricaRepository.existsByEvolucionMedicaId(evolucionMedica.getId());
+    boolean tieneAltaMedica = altaMedicaRepository.existsByEvolucionMedicaId(evolucionMedica.getId());
+
+    // Para listas, verificar si no están vacías
+    boolean tieneDiagnosticos = !diagnosticosRepository.findByEvolucionMedicaId(evolucionMedica.getId()).isEmpty();
+    boolean tienePlanesTratamiento = !planesTratamientoRepository.findByEvolucionMedicaId(evolucionMedica.getId()).isEmpty();
+    boolean tieneExamenesSolicitados = !examenesSolicitadosRepository.findByEvolucionMedicaId(evolucionMedica.getId()).isEmpty();
+    boolean tieneLocalizacionLesiones = !localizacionLesionesRepository.findByEvolucionMedicaId(evolucionMedica.getId()).isEmpty();
 
     return EvolucionMedicaResumenResponse.builder()
         .id(evolucionMedica.getId())
@@ -536,9 +546,16 @@ public class EvolucionMedicaService {
         .tipoConsulta(evolucionMedica.getTipoConsulta())
         .estado(evolucionMedica.getEstado())
         .fechaCreacion(evolucionMedica.getFechaCreacion())
+        .tieneMotivoAtencion(tieneMotivoAtencion)
         .tieneSignosVitales(tieneSignosVitales)
+        .tieneAntecedentesIncidente(tieneAntecedentesIncidente)
+        .tieneValoracionClinica(tieneValoracionClinica)
         .tieneDiagnosticos(tieneDiagnosticos)
-        .tieneTratamientos(tieneTratamientos)
+        .tienePlanesTratamiento(tienePlanesTratamiento)
+        .tieneExamenesSolicitados(tieneExamenesSolicitados)
+        .tieneLocalizacionLesiones(tieneLocalizacionLesiones)
+        .tieneEmergenciaObstetrica(tieneEmergenciaObstetrica)
+        .tieneAltaMedica(tieneAltaMedica)
         .build();
   }
 

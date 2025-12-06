@@ -18,7 +18,16 @@ public class EvolucionMedicaResumenResponse {
   private String tipoConsulta;
   private String estado;
   private Instant fechaCreacion;
+
+  // Secciones para verificar completitud
+  private boolean tieneMotivoAtencion;
   private boolean tieneSignosVitales;
+  private boolean tieneAntecedentesIncidente;
+  private boolean tieneValoracionClinica;
   private boolean tieneDiagnosticos;
-  private boolean tieneTratamientos;
+  private boolean tienePlanesTratamiento;
+  private boolean tieneExamenesSolicitados;
+  private boolean tieneLocalizacionLesiones;
+  private boolean tieneEmergenciaObstetrica;
+  private boolean tieneAltaMedica;
 }
