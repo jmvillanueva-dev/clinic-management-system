@@ -43,8 +43,8 @@ public interface EvolucionMedicaRepository extends JpaRepository<EvolucionMedica
       "(:historiaClinicaId IS NULL OR e.historiaClinica.id = :historiaClinicaId) AND " +
       "(:empleadoId IS NULL OR e.empleado.id = :empleadoId) AND " +
       "(:estado IS NULL OR e.estado = :estado) AND " +
-      "(:fechaInicio IS NULL OR e.fechaConsulta >= :fechaInicio) AND " +
-      "(:fechaFin IS NULL OR e.fechaConsulta <= :fechaFin) " +
+      "(CAST(:fechaInicio AS string) IS NULL OR e.fechaConsulta >= :fechaInicio) AND " +
+      "(CAST(:fechaFin AS string) IS NULL OR e.fechaConsulta <= :fechaFin) " +
       "ORDER BY e.fechaConsulta DESC")
   List<EvolucionMedica> findByFiltros(
       @Param("historiaClinicaId") UUID historiaClinicaId,
