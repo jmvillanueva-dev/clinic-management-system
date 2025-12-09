@@ -1,5 +1,7 @@
 package com.clinic.webapi.modules.auth.controller;
 
+import com.clinic.webapi.modules.auth.dto.ForgotPasswordRequest;
+import com.clinic.webapi.modules.auth.dto.ResetPasswordRequest;
 import com.clinic.webapi.modules.auth.entity.RefreshToken;
 import com.clinic.webapi.modules.auth.service.RefreshTokenService;
 import com.clinic.webapi.shared.dto.ApiResponse;
@@ -143,5 +145,27 @@ public class AuthController {
                       .build()));
           })
           .orElseThrow(() -> new RuntimeException("El refresh token no existe en la base de datos!"));
+  }
+
+  @PostMapping("/forgot-password")
+  public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    try {
+      userService.solicitarRecuperacionPassword(request);
+      return ResponseEntity.ok(ApiResponse.success("Se ha enviado un correo con instrucciones para restablecer tu contraseña."));
+    } catch (RuntimeException e) {
+      // Por seguridad, a veces es mejor responder OK aunque el email no exista para no revelar usuarios,
+      // pero para desarrollo dejaremos el mensaje de error.
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    }
+  }
+
+  @PostMapping("/reset-password")
+  public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    try {
+      userService.restablecerPassword(request);
+      return ResponseEntity.ok(ApiResponse.success("Contraseña actualizada exitosamente. Ahora puedes iniciar sesión."));
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    }
   }
 }

@@ -1,5 +1,7 @@
 package com.clinic.webapi.modules.auth.service;
 
+import com.clinic.webapi.modules.auth.dto.ForgotPasswordRequest;
+import com.clinic.webapi.modules.auth.dto.ResetPasswordRequest;
 import com.clinic.webapi.modules.empleados.dto.EmpleadoUpdateRequest;
 import com.clinic.webapi.modules.auth.dto.UsuarioEmailUpdateRequest;
 import com.clinic.webapi.modules.auth.dto.UsuarioPasswordUpdateRequest;
@@ -16,6 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -273,4 +278,43 @@ public class UserService {
     usuarioRepository.save(usuario);
   }
 
+  // 1. Solicitar recuperación (Generar token y enviar email)
+  @Transactional
+  public void solicitarRecuperacionPassword(ForgotPasswordRequest request) {
+    Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+        .orElseThrow(() -> new RuntimeException("No existe un usuario registrado con ese email."));
+
+    // Generar token (usamos UUID random)
+    String token = UUID.randomUUID().toString();
+
+    // Configurar expiración (ej: 15 minutos)
+    usuario.setTokenRecuperacion(token);
+    usuario.setFechaExpiracionRecuperacion(Instant.now().plus(15, ChronoUnit.MINUTES));
+
+    usuarioRepository.save(usuario);
+
+    // Enviar correo
+    emailService.enviarCorreoRecuperacion(usuario, token);
+  }
+
+  // 2. Restablecer contraseña (Validar token y cambiar password)
+  @Transactional
+  public void restablecerPassword(ResetPasswordRequest request) {
+    Usuario usuario = usuarioRepository.findByTokenRecuperacion(request.getToken())
+        .orElseThrow(() -> new RuntimeException("El token de recuperación es inválido."));
+
+    // Validar expiración
+    if (usuario.getFechaExpiracionRecuperacion().isBefore(Instant.now())) {
+      throw new RuntimeException("El token de recuperación ha expirado. Solicita uno nuevo.");
+    }
+
+    // Actualizar contraseña
+    usuario.setPasswordHash(passwordEncoder.encode(request.getNuevaPassword()));
+
+    // Limpiar token para que no pueda usarse de nuevo
+    usuario.setTokenRecuperacion(null);
+    usuario.setFechaExpiracionRecuperacion(null);
+
+    usuarioRepository.save(usuario);
+  }
 }

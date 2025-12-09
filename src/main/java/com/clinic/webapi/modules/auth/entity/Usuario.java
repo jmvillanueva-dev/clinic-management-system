@@ -37,6 +37,12 @@ public class Usuario implements AuditableEntity {
   @Column(name = "token_verificacion")
   private String tokenVerificacion;
 
+  @Column(name = "token_recuperacion")
+  private String tokenRecuperacion;
+
+  @Column(name = "fecha_expiracion_recuperacion")
+  private Instant fechaExpiracionRecuperacion;
+
   @Column(name = "esta_activo", nullable = false)
   private boolean estaActivo = true;
 
