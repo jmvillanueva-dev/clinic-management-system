@@ -5,6 +5,7 @@ import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionMedicaRequest;
 import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionMedicaResponse;
 import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionMedicaResumenResponse;
 import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionMedicaUpdateRequest;
+import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionReporteDiarioResponse;
 import com.clinic.webapi.modules.evolucionesmedicas.service.EvolucionMedicaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -143,6 +144,27 @@ public class EvolucionMedicaController {
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(ApiResponse.error(e.getMessage()));
+    }
+  }
+
+  @GetMapping("/reporte-diario")
+  @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'MEDICO', 'ENFERMERO')")
+  public ResponseEntity<ApiResponse<List<EvolucionReporteDiarioResponse>>> obtenerReporteDiario(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+    
+    try {
+      // Si no envían fecha, usamos la fecha actual por defecto
+      LocalDate fechaConsulta = fecha != null ? fecha : LocalDate.now();
+      
+      List<EvolucionReporteDiarioResponse> reporte = evolucionMedicaService.obtenerReporteDiario(fechaConsulta);
+      
+      return ResponseEntity.ok(ApiResponse.success(
+          "Reporte diario obtenido exitosamente para la fecha: " + fechaConsulta, 
+          reporte
+      ));
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest()
+          .body(ApiResponse.error("Error al generar el reporte: " + e.getMessage()));
     }
   }
 }

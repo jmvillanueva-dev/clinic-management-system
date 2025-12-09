@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -742,5 +745,45 @@ public class EvolucionMedicaService {
         .especialidadControl(altaMedica.getEspecialidadControl())
         .fechaCreacion(altaMedica.getFechaCreacion())
         .build();
+  }
+
+  @Transactional(readOnly = true)
+  public List<EvolucionReporteDiarioResponse> obtenerReporteDiario(LocalDate fecha) {
+    ZoneId zoneId = ZoneId.systemDefault();
+    Instant inicioDia = fecha.atStartOfDay(zoneId).toInstant();
+    Instant finDia = fecha.atTime(LocalTime.MAX).atZone(zoneId).toInstant();
+
+    List<EvolucionMedica> evoluciones = evolucionMedicaRepository
+        .findByFechaConsultaBetweenOrderByFechaConsultaDesc(inicioDia, finDia);
+
+    return evoluciones.stream()
+        .map(ev -> {
+            // 1. Construir nombre del Paciente
+            String nombrePaciente = "Desconocido";
+            if (ev.getHistoriaClinica() != null && ev.getHistoriaClinica().getPaciente() != null) {
+                var p = ev.getHistoriaClinica().getPaciente();
+                nombrePaciente = p.getPrimerNombre() + " " + p.getApellidoPaterno();
+            }
+
+            // 2. Construir nombre del Empleado (Profesional)
+            String nombreEmpleado = "Sin asignar";
+            if (ev.getEmpleado() != null) {
+                nombreEmpleado = ev.getEmpleado().getNombre() + " " + ev.getEmpleado().getApellido();
+            }
+
+            return EvolucionReporteDiarioResponse.builder()
+                .evolucionId(ev.getId())
+                .fechaConsulta(ev.getFechaConsulta())
+                .historiaClinicaId(ev.getHistoriaClinica() != null ? ev.getHistoriaClinica().getId() : null)
+                .numeroHistoriaClinica(ev.getHistoriaClinica() != null ? ev.getHistoriaClinica().getNumeroHistoriaClinica() : null)
+                .pacienteId(ev.getHistoriaClinica() != null && ev.getHistoriaClinica().getPaciente() != null 
+                    ? ev.getHistoriaClinica().getPaciente().getId() 
+                    : null)
+                .pacienteNombreCompleto(nombrePaciente)
+                // Asignamos el nuevo campo
+                .empleadoNombreCompleto(nombreEmpleado)
+                .build();
+        })
+        .collect(Collectors.toList());
   }
 }
