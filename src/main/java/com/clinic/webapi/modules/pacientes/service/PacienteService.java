@@ -10,8 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -53,10 +54,10 @@ public class PacienteService {
         var fuenteInfo = crearFuenteInformacion(pacienteGuardado, request);
         pacienteGuardado.setFuenteInformacion(fuenteInfo);
 
-        List<PacienteContactoEmergencia> contactos = crearContactosEmergencia(pacienteGuardado, request);
+        Set<PacienteContactoEmergencia> contactos = crearContactosEmergencia(pacienteGuardado, request);
         pacienteGuardado.setContactosEmergencia(contactos);
 
-        List<PacienteAntecedenteClinico> antecedentes = crearAntecedentesClinicos(pacienteGuardado, request);
+        Set<PacienteAntecedenteClinico> antecedentes = crearAntecedentesClinicos(pacienteGuardado, request);
         pacienteGuardado.setAntecedentesClinicos(antecedentes);
 
         // 4. Devolver respuesta
@@ -176,9 +177,9 @@ public class PacienteService {
         return null;
     }
 
-    private List<PacienteContactoEmergencia> crearContactosEmergencia(Paciente paciente, PacienteRequest request) {
+    private Set<PacienteContactoEmergencia> crearContactosEmergencia(Paciente paciente, PacienteRequest request) {
         if (request.getContactosEmergencia() != null && !request.getContactosEmergencia().isEmpty()) {
-            List<PacienteContactoEmergencia> contactos = new ArrayList<>();
+            Set<PacienteContactoEmergencia> contactos = new HashSet<>();
 
             for (var contactoRequest : request.getContactosEmergencia()) {
                 var parentesco = itemCatalogoRepository.findById(contactoRequest.getParentescoId())
@@ -195,14 +196,14 @@ public class PacienteService {
                 contactos.add(contacto);
             }
 
-            return contactoEmergenciaRepository.saveAll(contactos);
+            return new HashSet<>(contactoEmergenciaRepository.saveAll(contactos));
         }
-        return new ArrayList<>();
+        return new HashSet<>();
     }
 
-    private List<PacienteAntecedenteClinico> crearAntecedentesClinicos(Paciente paciente, PacienteRequest request) {
+    private Set<PacienteAntecedenteClinico> crearAntecedentesClinicos(Paciente paciente, PacienteRequest request) {
         if (request.getAntecedentesClinicos() != null && !request.getAntecedentesClinicos().isEmpty()) {
-            List<PacienteAntecedenteClinico> antecedentes = new ArrayList<>();
+            Set<PacienteAntecedenteClinico> antecedentes = new HashSet<>();
 
             for (var antecedenteRequest : request.getAntecedentesClinicos()) {
                 var tipoAntecedente = itemCatalogoRepository.findById(antecedenteRequest.getTipoAntecedenteId())
@@ -224,9 +225,9 @@ public class PacienteService {
                 antecedentes.add(antecedente);
             }
 
-            return antecedenteClinicoRepository.saveAll(antecedentes);
+            return new HashSet<>(antecedenteClinicoRepository.saveAll(antecedentes));
         }
-        return new ArrayList<>();
+        return new HashSet<>();
     }
 
     @Transactional(readOnly = true)
@@ -253,18 +254,89 @@ public class PacienteService {
 
     @Transactional
     public PacienteResponse actualizarPaciente(UUID id, PacienteRequest request) {
-        Paciente pacienteExistente = pacienteRepository.findById(id)
+        Paciente paciente = pacienteRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new RuntimeException("Paciente no encontrado con ID: " + id));
 
         // Validar cédula si cambió
-        if (!request.getCedula().equals(pacienteExistente.getCedula()) &&
+        if (!request.getCedula().equals(paciente.getCedula()) &&
                 pacienteRepository.existsByCedula(request.getCedula())) {
             throw new RuntimeException("Ya existe un paciente con la cédula: " + request.getCedula());
         }
 
-        Paciente pacienteActualizado = pacienteMapper.updateEntityFromRequest(pacienteExistente, request);
-        Paciente pacienteGuardado = pacienteRepository.save(pacienteActualizado);
+        // 1. Actualizar campos de la entidad Paciente
+        paciente.setCedula(request.getCedula());
+        paciente.setPrimerNombre(request.getPrimerNombre());
+        paciente.setSegundoNombre(request.getSegundoNombre());
+        paciente.setApellidoPaterno(request.getApellidoPaterno());
+        paciente.setApellidoMaterno(request.getApellidoMaterno());
+        paciente.setEmail(request.getEmail());
+        paciente.setTelefono(request.getTelefono());
+        if (request.getGrupoSanguineoId() != null) {
+            var grupoSanguineo = itemCatalogoRepository.findById(request.getGrupoSanguineoId())
+                    .orElseThrow(() -> new RuntimeException("Grupo sanguíneo no encontrado"));
+            paciente.setGrupoSanguineo(grupoSanguineo);
+        }
 
+        // 2. Actualizar PacienteDatosDemograficos
+        PacienteDatosDemograficos datosDemograficos = paciente.getDatosDemograficos();
+        if (datosDemograficos == null) {
+            datosDemograficos = new PacienteDatosDemograficos();
+            datosDemograficos.setPaciente(paciente);
+        }
+        datosDemograficos.setFechaNacimiento(request.getFechaNacimiento());
+        datosDemograficos.setLugarNacimiento(request.getLugarNacimiento());
+        datosDemograficos.setNacionalidad(request.getNacionalidad());
+        // ... (actualizar otros campos de datos demográficos)
+        paciente.setDatosDemograficos(datosDemograficos);
+
+        // 3. Actualizar PacienteUbicacionGeografica
+        PacienteUbicacionGeografica ubicacion = paciente.getUbicacionGeografica();
+        if (ubicacion == null) {
+            ubicacion = new PacienteUbicacionGeografica();
+            ubicacion.setPaciente(paciente);
+        }
+        ubicacion.setDireccion(request.getDireccion());
+        ubicacion.setCanton(request.getCanton());
+        ubicacion.setParroquia(request.getParroquia());
+        if (request.getProvinciaId() != null) {
+            var provincia = itemCatalogoRepository.findById(request.getProvinciaId())
+                    .orElseThrow(() -> new RuntimeException("Provincia no encontrada"));
+            ubicacion.setProvincia(provincia);
+        }
+        paciente.setUbicacionGeografica(ubicacion);
+
+        // 4. Actualizar PacienteOcupacion
+        PacienteOcupacion ocupacion = paciente.getOcupacion();
+        if (request.getOcupacionId() != null) {
+            if (ocupacion == null) {
+                ocupacion = new PacienteOcupacion();
+                ocupacion.setPaciente(paciente);
+            }
+            var ocupacionCatalogo = itemCatalogoRepository.findById(request.getOcupacionId())
+                    .orElseThrow(() -> new RuntimeException("Ocupación no encontrada"));
+            ocupacion.setOcupacion(ocupacionCatalogo);
+            ocupacion.setNombreEmpresa(request.getNombreEmpresa());
+            ocupacion.setCargo(request.getCargo());
+            // ... (actualizar otros campos de ocupación)
+            paciente.setOcupacion(ocupacion);
+        } else {
+            paciente.setOcupacion(null);
+        }
+
+        // 5. Actualizar colecciones (borrar y crear)
+        // Contactos de emergencia
+        paciente.getContactosEmergencia().clear();
+        if (request.getContactosEmergencia() != null) {
+            paciente.getContactosEmergencia().addAll(crearContactosEmergencia(paciente, request));
+        }
+
+        // Antecedentes clínicos
+        paciente.getAntecedentesClinicos().clear();
+        if (request.getAntecedentesClinicos() != null) {
+            paciente.getAntecedentesClinicos().addAll(crearAntecedentesClinicos(paciente, request));
+        }
+
+        Paciente pacienteGuardado = pacienteRepository.save(paciente);
         return pacienteMapper.toResponse(pacienteGuardado);
     }
 

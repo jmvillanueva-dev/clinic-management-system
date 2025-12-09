@@ -8,8 +8,8 @@ import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -70,8 +70,8 @@ public class Paciente implements AuditableEntity {
   private PacienteFuenteInformacion fuenteInformacion;
 
   @OneToMany(mappedBy = "paciente", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<PacienteContactoEmergencia> contactosEmergencia = new ArrayList<>();
+  private Set<PacienteContactoEmergencia> contactosEmergencia = new HashSet<>();
 
   @OneToMany(mappedBy = "paciente", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<PacienteAntecedenteClinico> antecedentesClinicos = new ArrayList<>();
+  private Set<PacienteAntecedenteClinico> antecedentesClinicos = new HashSet<>();
 }

@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -48,8 +48,8 @@ public class PacienteResponse {
   private FuenteInformacionResponse fuenteInformacion;
 
   // Contactos de emergencia
-  private List<ContactoEmergenciaResponse> contactosEmergencia;
+  private Set<ContactoEmergenciaResponse> contactosEmergencia;
 
   // Antecedentes clínicos
-  private List<AntecedenteClinicoResponse> antecedentesClinicos;
+  private Set<AntecedenteClinicoResponse> antecedentesClinicos;
 }
