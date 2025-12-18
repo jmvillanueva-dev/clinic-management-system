@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -91,6 +92,15 @@ public class HistoriaClinicaService {
   @Transactional(readOnly = true)
   public List<HistoriaClinicaResponse> obtenerTodasLasHistoriasClinicas() {
     return historiaClinicaRepository.findAll()
+        .stream()
+        .map(historiaClinicaMapper::toResponse)
+        .map(this::enrichResponse)
+        .collect(Collectors.toList());
+  }
+
+  @Transactional(readOnly = true)
+  public List<HistoriaClinicaResponse> buscarHistoriasPorFecha(Instant fechaInicio, Instant fechaFin) {
+    return historiaClinicaRepository.findByFechaCreacionBetweenOrderByFechaCreacionDesc(fechaInicio, fechaFin)
         .stream()
         .map(historiaClinicaMapper::toResponse)
         .map(this::enrichResponse)

@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,4 +29,7 @@ public interface HistoriaClinicaRepository extends JpaRepository<HistoriaClinica
 
   @Query("SELECT COUNT(e) FROM EvolucionMedica e WHERE e.historiaClinica.id = :historiaClinicaId")
   Long countEvolucionesByHistoriaClinicaId(@Param("historiaClinicaId") UUID historiaClinicaId);
+
+  // Nuevo método para buscar por rango de fechas
+  List<HistoriaClinica> findByFechaCreacionBetweenOrderByFechaCreacionDesc(Instant fechaInicio, Instant fechaFin);
 }

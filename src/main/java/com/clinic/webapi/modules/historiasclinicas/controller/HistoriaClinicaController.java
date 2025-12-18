@@ -6,11 +6,15 @@ import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaResponse;
 import com.clinic.webapi.modules.historiasclinicas.service.HistoriaClinicaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,6 +79,21 @@ public class HistoriaClinicaController {
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(ApiResponse.error(e.getMessage()));
+    }
+  }
+
+  @GetMapping("/buscar-por-fecha")
+  @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'MEDICO', 'ENFERMERO')")
+  public ResponseEntity<ApiResponse<List<HistoriaClinicaResponse>>> buscarHistoriasPorFecha(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
+    try {
+      Instant inicio = fechaInicio.atStartOfDay(ZoneId.systemDefault()).toInstant();
+      Instant fin = fechaFin.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
+      List<HistoriaClinicaResponse> historias = historiaClinicaService.buscarHistoriasPorFecha(inicio, fin);
+      return ResponseEntity.ok(ApiResponse.success("Historias clínicas encontradas exitosamente", historias));
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
     }
   }
 
