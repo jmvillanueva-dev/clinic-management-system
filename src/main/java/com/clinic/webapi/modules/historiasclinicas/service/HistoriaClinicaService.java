@@ -1,12 +1,17 @@
 package com.clinic.webapi.modules.historiasclinicas.service;
 
+import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionMedicaResponse;
+import com.clinic.webapi.modules.evolucionesmedicas.service.EvolucionMedicaService;
+import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaCompletaResponse;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaRequest;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaResponse;
 import com.clinic.webapi.modules.historiasclinicas.entity.HistoriaClinica;
 import com.clinic.webapi.modules.historiasclinicas.model.mapper.HistoriaClinicaMapper;
 import com.clinic.webapi.modules.historiasclinicas.repository.HistoriaClinicaRepository;
+import com.clinic.webapi.modules.pacientes.dto.PacienteResponse;
 import com.clinic.webapi.modules.pacientes.model.entity.Paciente;
 import com.clinic.webapi.modules.pacientes.repository.PacienteRepository;
+import com.clinic.webapi.modules.pacientes.service.PacienteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +28,8 @@ public class HistoriaClinicaService {
   private final HistoriaClinicaRepository historiaClinicaRepository;
   private final PacienteRepository pacienteRepository;
   private final HistoriaClinicaMapper historiaClinicaMapper;
+  private final EvolucionMedicaService evolucionMedicaService;
+  private final PacienteService pacienteService;
 
   @Transactional
   public HistoriaClinica crearHistoriaClinicaAutomatica(Paciente paciente) {
@@ -136,5 +143,25 @@ public class HistoriaClinicaService {
   public HistoriaClinica obtenerEntidadPorPacienteId(UUID pacienteId) {
     return historiaClinicaRepository.findByPacienteId(pacienteId)
         .orElseThrow(() -> new RuntimeException("Historia clínica no encontrada para el paciente con ID: " + pacienteId));
+  }
+
+  @Transactional(readOnly = true)
+  public HistoriaClinicaCompletaResponse obtenerTodoPorEvolucion(UUID evolucionId) {
+    // 1. Obtener Evolución (Ya trae sus 10 secciones mapeadas)
+    EvolucionMedicaResponse evolucionDto = evolucionMedicaService.obtenerEvolucionMedicaCompleta(evolucionId);
+
+    // 2. Obtener Historia Clínica
+    HistoriaClinica hc = historiaClinicaRepository.findById(evolucionDto.getHistoriaClinicaId())
+        .orElseThrow(() -> new RuntimeException("HC no encontrada"));
+    HistoriaClinicaResponse hcDto = historiaClinicaMapper.toResponse(hc);
+
+    // 3. Obtener Paciente (Ya trae datos demográficos, ubicación, etc.)
+    PacienteResponse pacienteDto = pacienteService.obtenerPacientePorId(hc.getPaciente().getId());
+
+    return HistoriaClinicaCompletaResponse.builder()
+            .paciente(pacienteDto)
+            .historiaClinica(hcDto)
+            .evolucion(evolucionDto)
+            .build();
   }
 }

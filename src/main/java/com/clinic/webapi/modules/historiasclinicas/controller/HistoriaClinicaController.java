@@ -1,5 +1,6 @@
 package com.clinic.webapi.modules.historiasclinicas.controller;
 
+import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaCompletaResponse;
 import com.clinic.webapi.shared.dto.ApiResponse;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaRequest;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaResponse;
@@ -121,5 +122,12 @@ public class HistoriaClinicaController {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(ApiResponse.error(e.getMessage()));
     }
+  }
+
+  @GetMapping("/evolucion/{evolucionId}/completa")
+  public ResponseEntity<ApiResponse<HistoriaClinicaCompletaResponse>> getHistoriaCompletaPorEvolucion(
+          @PathVariable UUID evolucionId) {
+      var data = historiaClinicaService.obtenerTodoPorEvolucion(evolucionId);
+      return ResponseEntity.ok(ApiResponse.success("Información de HC recuperada exitosamente", data));
   }
 }
