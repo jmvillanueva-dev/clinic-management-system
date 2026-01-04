@@ -21,6 +21,8 @@ public interface HistoriaClinicaRepository extends JpaRepository<HistoriaClinica
 
   Optional<HistoriaClinica> findByNumeroHistoriaClinica(String numeroHistoriaClinica);
 
+  List<HistoriaClinica> findByNumeroHistoriaClinicaContainingIgnoreCase(String numeroHistoriaClinica);
+
   boolean existsByPacienteId(UUID pacienteId);
 
   boolean existsByPaciente(Paciente paciente);

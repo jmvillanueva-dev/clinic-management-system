@@ -73,10 +73,10 @@ public class HistoriaClinicaController {
 
   @GetMapping("/numero/{numeroHistoriaClinica}")
   @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'MEDICO', 'ENFERMERO')")
-  public ResponseEntity<ApiResponse<HistoriaClinicaResponse>> obtenerHistoriaClinicaPorNumero(@PathVariable String numeroHistoriaClinica) {
+  public ResponseEntity<ApiResponse<List<HistoriaClinicaResponse>>> buscarHistoriasClinicasPorNumero(@PathVariable String numeroHistoriaClinica) {
     try {
-      HistoriaClinicaResponse response = historiaClinicaService.obtenerHistoriaClinicaPorNumero(numeroHistoriaClinica);
-      return ResponseEntity.ok(ApiResponse.success("Historia clínica obtenida exitosamente", response));
+      List<HistoriaClinicaResponse> response = historiaClinicaService.buscarHistoriasClinicasPorNumero(numeroHistoriaClinica);
+      return ResponseEntity.ok(ApiResponse.success("Historias clínicas encontradas exitosamente", response));
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(ApiResponse.error(e.getMessage()));

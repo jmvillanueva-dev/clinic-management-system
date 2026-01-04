@@ -2,14 +2,14 @@ package com.clinic.webapi.modules.historiasclinicas.service;
 
 import com.clinic.webapi.modules.evolucionesmedicas.dto.EvolucionMedicaResponse;
 import com.clinic.webapi.modules.evolucionesmedicas.service.EvolucionMedicaService;
+import com.clinic.webapi.modules.historiasclinicas.entity.HistoriaClinica;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaCompletaResponse;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaRequest;
 import com.clinic.webapi.modules.historiasclinicas.dto.HistoriaClinicaResponse;
-import com.clinic.webapi.modules.historiasclinicas.entity.HistoriaClinica;
 import com.clinic.webapi.modules.historiasclinicas.model.mapper.HistoriaClinicaMapper;
 import com.clinic.webapi.modules.historiasclinicas.repository.HistoriaClinicaRepository;
-import com.clinic.webapi.modules.pacientes.dto.PacienteResponse;
 import com.clinic.webapi.modules.pacientes.model.entity.Paciente;
+import com.clinic.webapi.modules.pacientes.dto.PacienteResponse;
 import com.clinic.webapi.modules.pacientes.repository.PacienteRepository;
 import com.clinic.webapi.modules.pacientes.service.PacienteService;
 import lombok.RequiredArgsConstructor;
@@ -94,6 +94,15 @@ public class HistoriaClinicaService {
     HistoriaClinica historiaClinica = historiaClinicaRepository.findByNumeroHistoriaClinica(numeroHistoriaClinica)
         .orElseThrow(() -> new RuntimeException("Historia clínica no encontrada con número: " + numeroHistoriaClinica));
     return enrichResponse(historiaClinicaMapper.toResponse(historiaClinica));
+  }
+
+  @Transactional(readOnly = true)
+  public List<HistoriaClinicaResponse> buscarHistoriasClinicasPorNumero(String numeroHistoriaClinica) {
+    return historiaClinicaRepository.findByNumeroHistoriaClinicaContainingIgnoreCase(numeroHistoriaClinica)
+        .stream()
+        .map(historiaClinicaMapper::toResponse)
+        .map(this::enrichResponse)
+        .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
