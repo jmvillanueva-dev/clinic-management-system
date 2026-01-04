@@ -18,6 +18,9 @@ public class EmailService {
   @Value("${spring.mail.username}")
   private String fromEmail;
 
+  @Value("${app.frontend-url}")
+  private String frontendUrl;
+
   /**
    * Envía el correo de bienvenida y verificación al nuevo empleado en formato HTML.
    * @param usuario Usuario recién creado.
@@ -34,7 +37,7 @@ public class EmailService {
         helper.setSubject("¡Bienvenido/a al Centro Médico - Verificación de Cuenta");
 
         // 1. URL apunta al frontend
-        String verificationUrl = "http://localhost:4321/auth/verify?token=" + token;
+        String verificationUrl = frontendUrl + "/auth/verify?token=" + token;
 
         // 2. Contenido HTML con botón
         String htmlContent = String.format(
@@ -85,7 +88,7 @@ public class EmailService {
           helper.setTo(usuario.getEmail());
           helper.setSubject("Recuperación de Contraseña - Centro Médico");
 
-          String resetUrl = "http://localhost:4321/auth/reset-password?token=" + token;
+          String resetUrl = frontendUrl + "/auth/reset-password?token=" + token;
 
           String htmlContent = String.format(
               "<div style='font-family: Arial, sans-serif; color: #333;'>" +

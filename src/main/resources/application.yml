@@ -34,3 +34,6 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 3600000
   refresh-expiration-ms: 604800000
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:4321}

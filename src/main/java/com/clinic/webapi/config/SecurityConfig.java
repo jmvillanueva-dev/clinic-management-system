@@ -3,6 +3,7 @@ package com.clinic.webapi.config;
 import com.clinic.webapi.shared.security.JwtAuthenticationFilter;
 import com.clinic.webapi.shared.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -29,6 +30,9 @@ public class SecurityConfig {
   private final JwtService jwtService;
   private final UserDetailsService userDetailsService;
 
+  @Value("${app.frontend-url}")
+  private String frontendUrl;
+
   @Bean
   public JwtAuthenticationFilter jwtAuthenticationFilter() {
     return new JwtAuthenticationFilter(jwtService);
@@ -50,7 +54,8 @@ public class SecurityConfig {
           CorsConfiguration config = new CorsConfiguration();
           config.setAllowedOrigins(List.of(
               "http://localhost:4321", 
-              "https://clinic-system-management-ue.vercel.app"
+              "https://clinic-system-management-ue.vercel.app",
+              frontendUrl
           ));
           config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
           config.setAllowedHeaders(List.of("*"));
