@@ -88,6 +88,24 @@ public class UserService {
     if (request.getCodigoProfesional() != null) empleadoExistente.setCodigoProfesional(request.getCodigoProfesional());
     if (request.getTelefono() != null) empleadoExistente.setTelefono(request.getTelefono());
 
+    // 3. Actualizar roles si se proporcionan y el solicitante es ADMIN
+    if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+      if (!esAdmin) {
+        throw new SecurityException("Solo un administrador puede modificar los roles.");
+      }
+
+      Usuario usuarioAsociado = usuarioRepository.findByEmpleado(empleadoExistente)
+          .orElseThrow(() -> new RuntimeException("Usuario asociado al empleado no encontrado."));
+
+      Set<Rol> nuevosRoles = request.getRoles().stream()
+          .map(rolName -> rolRepository.findByNombre(rolName)
+              .orElseThrow(() -> new RuntimeException("Rol no encontrado: " + rolName)))
+          .collect(Collectors.toSet());
+
+      usuarioAsociado.setRoles(nuevosRoles);
+      usuarioRepository.save(usuarioAsociado);
+    }
+
     return empleadoRepository.save(empleadoExistente);
   }
 

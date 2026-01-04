@@ -7,6 +7,7 @@ import com.clinic.webapi.modules.auth.dto.UsuarioPasswordUpdateRequest;
 import com.clinic.webapi.modules.auth.dto.UsuarioResponse;
 import com.clinic.webapi.modules.empleados.dto.EmpleadoResponse;
 import com.clinic.webapi.modules.empleados.entity.Empleado;
+import com.clinic.webapi.modules.empleados.entity.Rol;
 import com.clinic.webapi.modules.auth.entity.Usuario;
 import com.clinic.webapi.modules.auth.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,11 @@ public class EmpleadoController {
         .map(empleado -> {
           Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleado);
           String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
+          Set<String> roles = usuarioOpt.map(u -> u.getRoles().stream()
+              .map(Rol::getNombre)
+              .collect(Collectors.toSet()))
+              .orElse(Set.of());
+
           return EmpleadoResponse.builder()
               .id(empleado.getId())
               .nombre(empleado.getNombre())
@@ -69,6 +75,7 @@ public class EmpleadoController {
               .telefono(empleado.getTelefono())
               .estaActivo(empleado.isEstaActivo())
               .fechaCreacion(empleado.getFechaCreacion())
+              .roles(roles)
               .build();
         })
         .collect(Collectors.toList());
@@ -83,6 +90,10 @@ public class EmpleadoController {
       Empleado empleado = userService.findEmpleadoById(id);
       Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleado);
       String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
+      Set<String> roles = usuarioOpt.map(u -> u.getRoles().stream()
+              .map(Rol::getNombre)
+              .collect(Collectors.toSet()))
+              .orElse(Set.of());
 
       EmpleadoResponse response = EmpleadoResponse.builder()
           .id(empleado.getId())
@@ -95,6 +106,7 @@ public class EmpleadoController {
           .telefono(empleado.getTelefono())
           .estaActivo(empleado.isEstaActivo())
           .fechaCreacion(empleado.getFechaCreacion())
+          .roles(roles)
           .build();
 
       return ResponseEntity.ok(ApiResponse.success("Empleado obtenido exitosamente", response));
@@ -117,6 +129,10 @@ public class EmpleadoController {
       Empleado empleadoActualizado = userService.actualizarEmpleado(id, request, userId);
       Optional<Usuario> usuarioOpt = userService.findByEmpleado(empleadoActualizado);
       String email = usuarioOpt.map(Usuario::getEmail).orElse(null);
+      Set<String> roles = usuarioOpt.map(u -> u.getRoles().stream()
+              .map(Rol::getNombre)
+              .collect(Collectors.toSet()))
+              .orElse(Set.of());
 
       EmpleadoResponse response = EmpleadoResponse.builder()
           .id(empleadoActualizado.getId())
@@ -129,6 +145,7 @@ public class EmpleadoController {
           .telefono(empleadoActualizado.getTelefono())
           .estaActivo(empleadoActualizado.isEstaActivo())
           .fechaCreacion(empleadoActualizado.getFechaCreacion())
+          .roles(roles)
           .build();
 
       return ResponseEntity.ok(ApiResponse.success("Empleado actualizado exitosamente", response));

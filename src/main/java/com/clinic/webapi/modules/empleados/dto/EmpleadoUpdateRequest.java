@@ -2,6 +2,7 @@ package com.clinic.webapi.modules.empleados.dto;
 
 import lombok.Data;
 import jakarta.validation.constraints.Size;
+import java.util.Set;
 
 @Data
 public class EmpleadoUpdateRequest {
@@ -21,4 +22,6 @@ public class EmpleadoUpdateRequest {
   private String codigoProfesional;
 
   private String telefono;
+
+  private Set<String> roles;
 }

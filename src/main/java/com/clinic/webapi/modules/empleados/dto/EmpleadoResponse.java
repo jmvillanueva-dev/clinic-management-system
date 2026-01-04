@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import java.util.UUID;
 import java.time.Instant;
+import java.util.Set;
 
 @Data
 @Builder
@@ -18,4 +19,5 @@ public class EmpleadoResponse {
   private String telefono;
   private boolean estaActivo;
   private Instant fechaCreacion;
+  private Set<String> roles;
 }
