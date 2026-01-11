@@ -16,20 +16,6 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
 
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: ${MAIL_SMTP_AUTH:true}
-          starttls:
-            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
-          ssl:
-            trust: ${MAIL_SMTP_SSL_TRUST:smtp.gmail.com}
-
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 3600000
@@ -37,3 +23,9 @@ jwt:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:4321}
+
+# Email Microservice
+email:
+  service:
+    url: ${EMAIL_SERVICE_URL:http://localhost:3000}
+    api-key: ${EMAIL_SERVICE_API_KEY:tu-api-key-segura}
