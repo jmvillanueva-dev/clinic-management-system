@@ -49,6 +49,9 @@ public class Usuario implements AuditableEntity {
   @Column(name = "esta_verificado", nullable = false)
   private boolean estaVerificado = false;
 
+  @Column(name = "requiere_cambio_password", nullable = false)
+  private boolean requiereCambioPassword = true;
+
   @Column(name = "fecha_creacion", updatable = false)
   private Instant fechaCreacion;
 
