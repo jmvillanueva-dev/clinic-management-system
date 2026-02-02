@@ -1,6 +1,8 @@
 package com.clinic.webapi.modules.auth.service;
 
 import com.clinic.webapi.modules.auth.dto.ForgotPasswordRequest;
+import com.clinic.webapi.modules.auth.dto.ForcePasswordChangeRequest;
+import com.clinic.webapi.modules.auth.dto.ForcePasswordChangeResponse;
 import com.clinic.webapi.modules.auth.dto.ResetPasswordRequest;
 import com.clinic.webapi.modules.empleados.dto.EmpleadoUpdateRequest;
 import com.clinic.webapi.modules.auth.dto.UsuarioEmailUpdateRequest;
@@ -225,6 +227,7 @@ public class UserService {
         .empleado(empleado)
         .estaActivo(true)
         .estaVerificado(false)
+        .requiereCambioPassword(true)
         .tokenVerificacion(tokenVerificacion)
         .roles(roles)
         .build();
@@ -333,6 +336,68 @@ public class UserService {
     usuario.setTokenRecuperacion(null);
     usuario.setFechaExpiracionRecuperacion(null);
 
+    usuarioRepository.save(usuario);
+  }
+
+  // --- NUEVA FUNCIONALIDAD: Cambio obligatorio de contraseña ---
+
+  /**
+   * Permite a un usuario cambiar su contraseña temporal obligatoriamente.
+   * Este método se usa cuando requiereCambioPassword es true.
+   * 
+   * @param request DTO con email, contraseña actual y nueva contraseña
+   * @return ForcePasswordChangeResponse con el resultado de la operación
+   */
+  @Transactional
+  public ForcePasswordChangeResponse cambiarPasswordObligatorio(ForcePasswordChangeRequest request) {
+    // 1. Buscar usuario por email
+    Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+        .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
+
+    // 2. Verificar que el usuario realmente requiere cambio de contraseña
+    if (!usuario.isRequiereCambioPassword()) {
+      throw new RuntimeException("Este usuario no requiere cambio obligatorio de contraseña.");
+    }
+
+    // 3. Validar contraseña actual
+    if (!passwordEncoder.matches(request.getContrasenaActual(), usuario.getPasswordHash())) {
+      throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+    }
+
+    // 4. Validar que la nueva contraseña sea diferente a la actual
+    if (passwordEncoder.matches(request.getNuevaContrasena(), usuario.getPasswordHash())) {
+      throw new IllegalArgumentException("La nueva contraseña debe ser diferente a la actual.");
+    }
+
+    // 5. Actualizar contraseña y desactivar flag
+    usuario.setPasswordHash(passwordEncoder.encode(request.getNuevaContrasena()));
+    usuario.setRequiereCambioPassword(false);
+    usuarioRepository.save(usuario);
+
+    return ForcePasswordChangeResponse.builder()
+        .mensaje("Contraseña actualizada exitosamente.")
+        .success(true)
+        .email(usuario.getEmail())
+        .build();
+  }
+
+  /**
+   * Permite a un administrador forzar que un usuario cambie su contraseña
+   * en el próximo inicio de sesión.
+   * 
+   * @param empleadoId ID del empleado cuyo usuario debe cambiar contraseña
+   */
+  @Transactional
+  public void forzarCambioPasswordPorAdmin(UUID empleadoId) {
+    // 1. Buscar empleado
+    Empleado empleado = findEmpleadoById(empleadoId);
+
+    // 2. Buscar usuario asociado al empleado
+    Usuario usuario = usuarioRepository.findByEmpleado(empleado)
+        .orElseThrow(() -> new RuntimeException("No se encontró un usuario asociado a este empleado."));
+
+    // 3. Establecer flag de cambio obligatorio
+    usuario.setRequiereCambioPassword(true);
     usuarioRepository.save(usuario);
   }
 }

@@ -1,7 +1,10 @@
 package com.clinic.webapi.modules.auth.controller;
 
 import com.clinic.webapi.modules.auth.dto.ForgotPasswordRequest;
+import com.clinic.webapi.modules.auth.dto.ForcePasswordChangeRequest;
+import com.clinic.webapi.modules.auth.dto.ForcePasswordChangeResponse;
 import com.clinic.webapi.modules.auth.dto.ResetPasswordRequest;
+import com.clinic.webapi.modules.auth.dto.AdminResetPasswordFlagRequest;
 import com.clinic.webapi.modules.auth.entity.RefreshToken;
 import com.clinic.webapi.modules.auth.service.RefreshTokenService;
 import com.clinic.webapi.shared.dto.ApiResponse;
@@ -96,16 +99,17 @@ public class AuthController {
       RefreshToken refreshToken = refreshTokenService.createRefreshToken(usuario.getId());
       Empleado empleado = usuario.getEmpleado();
 
-      AuthResponse response = new AuthResponse(
-        accessToken, 
-        refreshToken.getToken(),
-        "Bearer", 
-        usuario.getEmail(), 
-        roles,
-        empleado.getId(), 
-        empleado.getNombre(), 
-        empleado.getApellido()
-    );
+      AuthResponse response = AuthResponse.builder()
+          .accessToken(accessToken)
+          .refreshToken(refreshToken.getToken())
+          .tokenType("Bearer")
+          .email(usuario.getEmail())
+          .roles(roles)
+          .employeeId(empleado.getId())
+          .name(empleado.getNombre())
+          .lastName(empleado.getApellido())
+          .requiereCambioPassword(usuario.isRequiereCambioPassword())
+          .build();
 
       return ResponseEntity.ok(ApiResponse.success("Inicio de sesión exitoso", response));
 
@@ -164,6 +168,41 @@ public class AuthController {
     try {
       userService.restablecerPassword(request);
       return ResponseEntity.ok(ApiResponse.success("Contraseña actualizada exitosamente. Ahora puedes iniciar sesión."));
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    }
+  }
+
+  /**
+   * Endpoint para cambio obligatorio de contraseña.
+   * Se utiliza cuando un usuario nuevo debe cambiar su contraseña temporal
+   * en su primer inicio de sesión.
+   */
+  @PostMapping("/force-password-change")
+  public ResponseEntity<ApiResponse<ForcePasswordChangeResponse>> forcePasswordChange(
+      @Valid @RequestBody ForcePasswordChangeRequest request) {
+    try {
+      ForcePasswordChangeResponse response = userService.cambiarPasswordObligatorio(request);
+      return ResponseEntity.ok(ApiResponse.success("Contraseña actualizada exitosamente.", response));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+    }
+  }
+
+  /**
+   * Endpoint para que un administrador fuerce el cambio de contraseña de un usuario.
+   * Esto establece el flag requiereCambioPassword = true para el usuario especificado.
+   */
+  @PreAuthorize("hasRole('ADMINISTRADOR')")
+  @PostMapping("/admin/force-password-reset")
+  public ResponseEntity<ApiResponse<Void>> adminForcePasswordReset(
+      @Valid @RequestBody AdminResetPasswordFlagRequest request) {
+    try {
+      userService.forzarCambioPasswordPorAdmin(request.getEmpleadoId());
+      return ResponseEntity.ok(ApiResponse.success(
+          "Se ha establecido que el usuario debe cambiar su contraseña en el próximo inicio de sesión."));
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
     }
